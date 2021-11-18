@@ -20,7 +20,7 @@ RUN cd "/tmp/bedtools2"  \
     && make -j $(nproc)  \
     && make test 2>&1 | grep -q 'Tools failing:  negativecontrol'
 
-FROM fedora:34 AS base
+FROM fedora:35 AS base
 
 COPY --from=builder "/tmp/bedtools2/bin" "/usr/local/bin"
 COPY --from=builder "/tmp/bedtools2/LICENSE" "/usr/local/share/licenses/bedtools/LICENSE"
