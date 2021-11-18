@@ -2,7 +2,7 @@
 #
 # SPDX-License-Identifier: MIT
 
-FROM fedora:35 AS base
+FROM fedora:34 AS base
 
 ARG CONTAINER_VERSION=0.5.0
 ARG COOLTOOLS_VER=${CONTAINER_VERSION}
@@ -10,11 +10,13 @@ ARG PIP_NO_CACHE_DIR=0
 
 # Update system repo and install required tools
 RUN dnf update -y \
-    && dnf install -y --setopt=install_weak_deps=False --best  \
-                      gcc python3 python3-Cython python3-numpy \
-                      python3-pip python3-devel zlib-devel     \
-    && python3 -m pip install cooltools==${COOLTOOLS_VER}      \
-    && dnf remove -y gcc python3-devel python3-pip zlib-devel  \
+    && dnf install -y --setopt=install_weak_deps=False --best       \
+                      gcc python3 python3-Cython python3-numpy      \
+                      python3-pip python3-devel python3-setuptools  \
+                      python3-wheel zlib-devel                      \
+    && pip3 install cooltools==${COOLTOOLS_VER}                     \
+    && dnf remove -y gcc python3-devel python3-Cython python3-pip   \
+                     python3-wheel zlib-devel                       \
     && dnf clean all
      
 ENV SHELL=/usr/bin/bash
