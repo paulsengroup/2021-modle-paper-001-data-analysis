@@ -1,0 +1,10 @@
+# Copyright (C) 2021 Roberto Rossini <roberros@uio.no>
+#
+# SPDX-License-Identifier: MIT
+
+# Ignore everything
+**
+
+# Allowed files and directory
+!scripts/**
+

@@ -1,0 +1,6 @@
+.nextflow*
+containers/images/
+data/
+work/
+sync.sh
+.vscode
