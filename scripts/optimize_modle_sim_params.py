@@ -300,7 +300,7 @@ if __name__ == "__main__":
                         random_state=seed)
 
         shutil.rmtree(tmp_prefix)
-        with open(f"{out_prefix}_{method}.pickle", "w") as fp:
+        with open(f"{out_prefix}_{method}.pickle", "wb") as fp:
             pickle.dump(res, fp)
 
     finally:
