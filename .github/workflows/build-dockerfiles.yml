@@ -25,7 +25,8 @@ jobs:
         image-name: ["bedtools",
                      "cooltools",
                      "param-optimization",
-                     "stripenn"]
+                     "stripenn",
+                     "utils"]
     
     steps:
       - name: Checkout
