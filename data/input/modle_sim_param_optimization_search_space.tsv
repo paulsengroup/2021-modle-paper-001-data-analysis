@@ -1,0 +1,8 @@
+param	start	end
+--lefs-per-mbp	10	150
+--hard-stall-lef-stability-multiplier	1.0	30.0
+--extrusion-barrier-occupancy	0.7	0.95
+--ctcf-not-occupied-probability-of-transition-to-self	0.3	0.75
+--bin-size	5000	5000
+--target-contact-density	1.0	1.0
+--ncells	128	128

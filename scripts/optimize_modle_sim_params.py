@@ -67,7 +67,7 @@ def run_subprocess(cmd):
             f"Subprocess for {cmd[0]} {cmd[1]} exited with code {status.returncode}.\nCMD: " + " ".join(cmd))
 
 
-def run_modle(params):
+def run_modle_sim(params):
     cmd = ["modle", "sim",
            "-c", chrom_sizes,
            "--extrusion-barrier-file", extr_barriers,
@@ -109,137 +109,182 @@ def run_modle_tools_eval(input_name, output_name):
     run_subprocess(cmd)
 
 
-def fx(params):
-    global epoch
-    msg = [epoch]
-    msg.extend(params)
-    msg = "\t".join([str(x) for x in msg])
-    print(msg, end="")
-    with open(f"{out_prefix}.tsv", "a") as fp:
-        print(msg, end="", file=fp)
+def fx(params, keep_files=False, print_score=True):
+    if print_score:
+        global epoch
+        msg = [epoch]
+        msg.extend(params)
+        msg = "\t".join([str(x) for x in msg])
+        print(msg, end="")
+        with open(f"{out_prefix}_{method}.tsv", "a") as fp:
+            print(msg, end="", file=fp)
 
-        run_modle(params)
-        run_modle_tools_transform(f"{modle_out_prefix}.cool", f"{modle_tools_out_prefix}_transformed.cool",
-                                  gaussian_blur_sigma_tgt, gaussian_blur_sigma_multiplier_tgt,
-                                  discretization_thresh_tgt)
-        run_modle_tools_eval(
-            f"{modle_tools_out_prefix}_transformed.cool", modle_tools_out_prefix)
-        n = eval(sites_for_eval,
-                 glob.glob(f"{modle_tools_out_prefix}_*_horizontal.bw")[0],
-                 glob.glob(f"{modle_tools_out_prefix}_*_vertical.bw")[0])
+    run_modle_sim(params)
+    run_modle_tools_transform(f"{modle_out_prefix}.cool", f"{modle_tools_out_prefix}_transformed.cool",
+                              gaussian_blur_sigma_tgt, gaussian_blur_sigma_multiplier_tgt,
+                              discretization_thresh_tgt)
+    run_modle_tools_eval(
+        f"{modle_tools_out_prefix}_transformed.cool", modle_tools_out_prefix)
+    n = eval(sites_for_eval,
+             glob.glob(f"{modle_tools_out_prefix}_*_horizontal.bw")[0],
+             glob.glob(f"{modle_tools_out_prefix}_*_vertical.bw")[0])
 
+    if not keep_files:
         tmpfiles = list(glob.glob(f"{modle_out_prefix}*"))
         tmpfiles.extend(list(glob.glob(f"{modle_tools_out_prefix}*")))
         for file in set(tmpfiles):
             os.remove(file)
 
+    if print_score:
         print(f"\t{n:.8G}")
-        print(f"\t{n:.8G}", file=fp)
-
+        with open(f"{out_prefix}_{method}.tsv", "a") as fp:
+            print(f"\t{n:.8G}", file=fp)
         epoch += 1
-        return n
+
+    return n
 
 
 def make_cli():
     cli = argparse.ArgumentParser()
 
-    cli.add_argument("--chrom-sizes",
-                     help="Path to chrom.sizes file", required=True)
-    cli.add_argument("--diagonal-width",
-                     default=int(3e6),
-                     type=int)
-    cli.add_argument("--discretization-thresh-ref",
-                     default=1.5,
-                     type=float)
-    cli.add_argument("--discretization-thresh-tgt",
-                     default=1.0,
-                     type=float)
-    cli.add_argument("--evaluation-sites",
-                     help="Path to a BED file with the genomic coordinates to use during evaluation",
-                     required=True)
-    cli.add_argument("--excluded-chroms",
-                     default=["chrY", "chrM"],
-                     nargs="*")
-    cli.add_argument("--extrusion-barriers",
-                     help="Path to extrusion barrier BED file",
-                     required=True)
-    cli.add_argument("--gaussian-blur-sigma-multiplier-ref",
-                     default=1.6,
-                     type=float)
-    cli.add_argument("--gaussian-blur-sigma-multiplier-tgt",
-                     default=1.6,
-                     type=float)
-    cli.add_argument("--gaussian-blur-sigma-ref",
-                     default=2.0,
-                     type=float)
-    cli.add_argument("--gaussian-blur-sigma-tgt",
-                     default=1.0,
-                     type=float)
-    cli.add_argument("--modle-tools-eval-metric",
-                     default="custom",
-                     choices=["custom", "eucl_dist", "pearson", "rmse", "spearman"])
-    cli.add_argument("--ncalls",
-                     default=5,
-                     type=int)
-    cli.add_argument("--nrandom-starts",
-                     default=1,
-                     type=int)
-    cli.add_argument("--nthreads",
-                     default=cpu_count(),
-                     type=int)
-    cli.add_argument(
+    parser = cli.add_subparsers(dest="cmd", required=True)
+    test = parser.add_parser("test",
+                             help=f"Test the set of \"optimal\" parameters identified by {os.path.basename(sys.argv[0])} optimize")
+    optimize = parser.add_parser("optimize",
+                                 help="Run the optimization procedure to find a set of \"optimal\" parameters for modle sim")
+
+    def check_positive_arg(value):
+        if int(value) <= 0:
+            raise argparse.ArgumentTypeError(f"{value} is not a positive integer value")
+        return int(value)
+
+    def define_common_arguments(p):
+        p.add_argument("--chrom-sizes",
+                       help="Path to chrom.sizes file", required=True)
+        p.add_argument("--diagonal-width",
+                       default=int(3e6),
+                       type=int)
+        p.add_argument("--discretization-thresh-ref",
+                       default=1.5,
+                       type=float)
+        p.add_argument("--discretization-thresh-tgt",
+                       default=1.0,
+                       type=float)
+        p.add_argument("--evaluation-sites",
+                       help="Path to a BED file with the genomic coordinates to use during evaluation",
+                       required=True)
+        p.add_argument("--excluded-chroms",
+                       default=["chrY", "chrM"],
+                       nargs="*")
+        p.add_argument("--extrusion-barriers",
+                       help="Path to extrusion barrier BED file",
+                       required=True)
+        p.add_argument("--gaussian-blur-sigma-multiplier-ref",
+                       default=1.6,
+                       type=float)
+        p.add_argument("--gaussian-blur-sigma-multiplier-tgt",
+                       default=1.6,
+                       type=float)
+        p.add_argument("--gaussian-blur-sigma-ref",
+                       default=2.0,
+                       type=float)
+        p.add_argument("--gaussian-blur-sigma-tgt",
+                       default=1.0,
+                       type=float)
+        p.add_argument("--modle-tools-eval-metric",
+                       default="custom",
+                       choices=["custom", "eucl_dist", "pearson", "rmse", "spearman"])
+        p.add_argument("--nthreads",
+                       default=cpu_count(),
+                       type=int)
+        p.add_argument("--output-prefix",
+                       help="Output prefix",
+                       required=True)
+        p.add_argument("--transformed-reference-matrix",
+                       help="Path to the reference matrix after computing the difference of gaussians",
+                       required=True)
+
+    define_common_arguments(optimize)
+    define_common_arguments(test)
+
+    optimize.add_argument("--ncalls",
+                          default=5,
+                          type=int)
+    optimize.add_argument("--nrandom-starts",
+                          default=1,
+                          type=int)
+    optimize.add_argument(
         "--optimization-method",
         default="bayesian",
         choices=["dummy", "forest", "gbrt", "bayesian"],
         help="See https://scikit-optimize.github.io/stable/modules/minimize_functions.html")
-    cli.add_argument("--output-prefix",
-                     help="Output prefix",
-                     required=True)
-    cli.add_argument("--param-space-tsv",
-                     help="Path to a TSV file with three columns names param, start and end.",
-                     required=True)
-    cli.add_argument("--seed",
-                     default=1630986062,
-                     type=int)
-    cli.add_argument("--transformed-reference-matrix",
-                     help="Path to the reference matrix after computing the difference of gaussians",
-                     required=True)
-    cli.add_argument("--x0",
-                     help="Comma-separated string of starting points")
+
+    optimize.add_argument("--param-space-tsv",
+                          help="Path to a TSV file with three columns names param, start and end.",
+                          required=True)
+    optimize.add_argument("--seed",
+                          default=1630986062,
+                          type=int)
+    optimize.add_argument("--x0",
+                          help="Comma-separated string of starting points")
+
+    test.add_argument("--optimization-result-tsv",
+                      help=f"TSV containing the result of the optimization conducted by {os.path.basename(sys.argv[0])} optimize",
+                      required=True,
+                      type=str)
+    test.add_argument(
+        "--num-params-to-test",
+        help="Number of parameter combinations to test. Parameters are first sorted in ascending order based on their score, then the top N parameter combinations are tested",
+        default=1,
+        type=check_positive_arg)
 
     return cli
 
 
-if __name__ == "__main__":
-    args = make_cli().parse_args()
+def run_testing():
+    global modle_out_prefix
+    global modle_tools_out_prefix
+    global param_df
+    global bin_size
 
-    out_prefix = args.output_prefix
+    result_df = pd.read_csv(args.optimization_result_tsv, sep="\t").sort_values("score", ascending=True)
+    params = list(result_df.columns)
+    params.remove("epoch")
+    params.remove("score")
 
-    uuid_ = uuid.uuid1()
+    param_df = pd.DataFrame(index=params)  # This df is used by run_modle_sim
+
+    assert (result_df["--bin-size"] == result_df["--bin-size"][0]).all(0)
+    bin_size = int(result_df.loc[0, "--bin-size"])
+
+    with open(f"{out_prefix}_test_result.tsv", "w") as fp:
+        header = "\t".join(param_df.index) + "\tscore"
+        print(f"{header}")
+        print(f"{header}", file=fp)
+
+        for i in range(args.num_params_to_test):
+            modle_out_prefix = f"{i:03d}_{out_prefix}_modle"
+            modle_tools_out_prefix = f"{i:03d}_{out_prefix}_modle_tools"
+
+            params = result_df.values.tolist()[i][1:-1]
+            score = fx(params, keep_files=True, print_score=False)
+
+            msg = "\t".join([str(x) for x in params])
+            print(f"{msg}\t{score}")
+            print(f"{msg}\t{score}", file=fp)
+
+
+def run_optimize():
+    global modle_out_prefix
+    global modle_tools_out_prefix
+    global epoch
+    global param_df
+    global bin_size
 
     param_df = pd.read_csv(args.param_space_tsv, sep="\t", dtype=str)
     param_df.set_index("param", inplace=True)
     assert param_df.loc["--bin-size", "start"] == param_df.loc["--bin-size", "end"]
-
     bin_size = int(param_df.loc["--bin-size", "start"])
-    diagonal_width = int(args.diagonal_width)
-    chrom_sizes = args.chrom_sizes
-    extr_barriers = args.extrusion_barriers
-    reference_matrix = args.transformed_reference_matrix
-    excluded_chroms = set(itertools.chain.from_iterable([str(tok).split(",") for tok in args.excluded_chroms]))
-    nthreads = args.nthreads
-    seed = args.seed
-
-    gaussian_blur_sigma_ref = args.gaussian_blur_sigma_ref
-    gaussian_blur_sigma_multiplier_ref = args.gaussian_blur_sigma_multiplier_ref
-    discretization_thresh_ref = args.discretization_thresh_ref
-    gaussian_blur_sigma_tgt = args.gaussian_blur_sigma_tgt
-    gaussian_blur_sigma_multiplier_tgt = args.gaussian_blur_sigma_multiplier_tgt
-    discretization_thresh_tgt = args.discretization_thresh_tgt
-
-    modle_tools_eval_metric = args.modle_tools_eval_metric
-
-    sites_for_eval = args.evaluation_sites
 
     x0 = args.x0
     if x0 is not None:
@@ -264,12 +309,12 @@ if __name__ == "__main__":
         if os.path.dirname(out_prefix) != "":
             os.makedirs(os.path.dirname(out_prefix), exist_ok=True)
 
-        modle_out_prefix = f"{tmpdir}/modle_"
-        modle_tools_out_prefix = f"{tmpdir}/modle_tools_"
+        modle_out_prefix = f"{tmpdir}/modle"
+        modle_tools_out_prefix = f"{tmpdir}/modle_tools"
 
         header = "epoch\t" + "\t".join(param_df.index) + "\tscore"
         print(header)
-        with open(f"{out_prefix}.tsv", "w") as fp:
+        with open(f"{out_prefix}_{method}.tsv", "w") as fp:
             print(header, file=fp)
 
         dimensions = []
@@ -286,6 +331,7 @@ if __name__ == "__main__":
 
         assert x0 is None or len(x0) == len(dimensions)
 
+        seed = args.seed
         epoch = 0
         res = optimizer(fx,
                         dimensions=dimensions,
@@ -295,5 +341,37 @@ if __name__ == "__main__":
                         n_random_starts=nrandom_starts,
                         random_state=seed)
 
-        with open(f"{out_prefix}_{method}.pickle", "wb") as fp:
-            pickle.dump(res, fp)
+    with open(f"{out_prefix}_{method}.pickle", "wb") as fp:
+        pickle.dump(res, fp)
+
+
+if __name__ == "__main__":
+    args = make_cli().parse_args()
+
+    out_prefix = args.output_prefix
+
+    uuid_ = uuid.uuid1()
+
+    diagonal_width = int(args.diagonal_width)
+    chrom_sizes = args.chrom_sizes
+    extr_barriers = args.extrusion_barriers
+    reference_matrix = args.transformed_reference_matrix
+    excluded_chroms = set(itertools.chain.from_iterable([str(tok).split(",") for tok in args.excluded_chroms]))
+    nthreads = args.nthreads
+
+    gaussian_blur_sigma_ref = args.gaussian_blur_sigma_ref
+    gaussian_blur_sigma_multiplier_ref = args.gaussian_blur_sigma_multiplier_ref
+    discretization_thresh_ref = args.discretization_thresh_ref
+    gaussian_blur_sigma_tgt = args.gaussian_blur_sigma_tgt
+    gaussian_blur_sigma_multiplier_tgt = args.gaussian_blur_sigma_multiplier_tgt
+    discretization_thresh_tgt = args.discretization_thresh_tgt
+
+    modle_tools_eval_metric = args.modle_tools_eval_metric
+
+    sites_for_eval = args.evaluation_sites
+
+    if args.cmd == "optimize":
+        run_optimize()
+    else:
+        assert args.cmd == "test"
+        run_testing()

@@ -4,12 +4,18 @@
 
 FROM ghcr.io/robomics/modle:sha-0224bee AS base
 
-
 ARG CONTAINER_VERSION=1.0.0
 ARG PANDAS_VER='1.3.*'
 ARG PYBIGWIG_VER='0.3.*'
 ARG SKOPT_VER='0.9.*'
 ARG PIP_NO_CACHE_DIR=0
+
+ENV SHELL=/usr/bin/bash
+ENV PATH='/usr/local/bin:/usr/bin'
+
+LABEL maintainer='Roberto Rossini <roberros@uio.no>'
+LABEL version=${CONTAINER_VERSION}
+WORKDIR /data
 
 # Update system repo and install required tools
 RUN apt-get update \
@@ -31,14 +37,8 @@ RUN install -d /usr/local/bin \
     && install -D -m 755 /tmp/scripts/optimize_modle_sim_params.py /usr/local/bin/ \
     && rm -r /tmp/scripts
 
-ENV SHELL=/usr/bin/bash
-ENV PATH='/usr/local/bin:/usr/bin'
-
-LABEL maintainer='Roberto Rossini <roberros@uio.no>'
-LABEL version=${CONTAINER_VERSION}
-WORKDIR /data
-ENTRYPOINT ["/usr/local/bin/optimize_modle_sim_params.py"]
-
 RUN optimize_modle_sim_params.py --help
 RUN modle --help
 RUN modle_tools --help
+
+ENTRYPOINT ["/usr/local/bin/optimize_modle_sim_params.py"]
