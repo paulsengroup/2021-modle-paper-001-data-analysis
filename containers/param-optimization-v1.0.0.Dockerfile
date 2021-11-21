@@ -2,7 +2,7 @@
 #
 # SPDX-License-Identifier: MIT
 
-FROM ghcr.io/robomics/modle:sha-2e06938 AS base
+FROM ghcr.io/robomics/modle:sha-0224bee AS base
 
 
 ARG CONTAINER_VERSION=1.0.0
@@ -37,7 +37,7 @@ ENV PATH='/usr/local/bin:/usr/bin'
 LABEL maintainer='Roberto Rossini <roberros@uio.no>'
 LABEL version=${CONTAINER_VERSION}
 WORKDIR /data
-ENTRYPOINT ["/usr/bin/bash"]
+ENTRYPOINT ["/usr/local/bin/optimize_modle_sim_params.py"]
 
 RUN optimize_modle_sim_params.py --help
 RUN modle --help
