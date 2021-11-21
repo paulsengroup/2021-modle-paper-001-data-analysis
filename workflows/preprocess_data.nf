@@ -65,10 +65,10 @@ process run_mast {
         path ctcf_motif_meme
 
     output:
-        path "${params.assembly_name_short}_CTCF_mast_hits.txt.gz", emit: txt_gz
+        path "${params.assembly_name_short}_${params.cell_line_name}_CTCF_mast_hits.txt.gz", emit: txt_gz
 
     shell:
-        out = "${params.assembly_name_short}_CTCF_mast_hits.txt.gz"
+        out = "${params.assembly_name_short}_${params.cell_line_name}_CTCF_mast_hits.txt.gz"
         """
         set -e
         set -u
@@ -99,10 +99,10 @@ process convert_mast_to_bed {
         path chrom_sizes_bed
 
     output:
-        path "${params.assembly_name_short}_CTCF_mast_hits.bed.gz", emit: bed_gz
+        path "${params.assembly_name_short}_${params.cell_line_name}_CTCF_mast_hits.bed.gz", emit: bed_gz
 
     shell: 
-        out = "${params.assembly_name_short}_CTCF_mast_hits.bed.gz"
+        out = "${params.assembly_name_short}_${params.cell_line_name}_CTCF_mast_hits.bed.gz"
         '''
         set -e
         set -u
@@ -138,10 +138,10 @@ process generate_extr_barriers_bed {
         path rad21_chip_peaks
 
     output:
-        path "${params.assembly_name_short}_CTCF_sites_filtered.bed.gz", emit: bed_gz
+        path "${params.assembly_name_short}_${params.cell_line_name}_CTCF_sites_filtered.bed.gz", emit: bed_gz
 
     shell:
-        out = "${params.assembly_name_short}_CTCF_sites_filtered.bed.gz"
+        out = "${params.assembly_name_short}_${params.cell_line_name}_CTCF_sites_filtered.bed.gz"
         """
         set -e
         set -u
