@@ -110,8 +110,10 @@ def run_modle_tools_eval(input_name, output_name):
 
 
 def fx(params, keep_files=False, print_score=True):
+    assert method is not None
+    global epoch
+
     if print_score:
-        global epoch
         msg = [epoch]
         msg.extend(params)
         msg = "\t".join([str(x) for x in msg])
@@ -294,7 +296,6 @@ def run_optimize():
     nrandom_starts = args.nrandom_starts
 
     optimizer = None
-    method = args.optimization_method
     if method == "dummy":
         optimizer = dummy_minimize
     elif method == "forest":
@@ -332,7 +333,6 @@ def run_optimize():
         assert x0 is None or len(x0) == len(dimensions)
 
         seed = args.seed
-        epoch = 0
         res = optimizer(fx,
                         dimensions=dimensions,
                         x0=x0,
@@ -369,7 +369,9 @@ if __name__ == "__main__":
     modle_tools_eval_metric = args.modle_tools_eval_metric
 
     sites_for_eval = args.evaluation_sites
+    method = args.optimization_method
 
+    epoch = 0
     if args.cmd == "optimize":
         run_optimize()
     else:
