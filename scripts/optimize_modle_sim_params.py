@@ -110,10 +110,10 @@ def run_modle_tools_eval(input_name, output_name):
 
 
 def fx(params, keep_files=False, print_score=True):
-    assert method is not None
     global epoch
 
     if print_score:
+        assert method is not None
         msg = [epoch]
         msg.extend(params)
         msg = "\t".join([str(x) for x in msg])
@@ -138,6 +138,7 @@ def fx(params, keep_files=False, print_score=True):
             os.remove(file)
 
     if print_score:
+        assert method is not None
         print(f"\t{n:.8G}")
         with open(f"{out_prefix}_{method}.tsv", "a") as fp:
             print(f"\t{n:.8G}", file=fp)
@@ -319,7 +320,7 @@ def run_optimize():
             print(header, file=fp)
 
         dimensions = []
-        for i, (param, vals) in enumerate(param_df.iterrows()):
+        for i, (_, vals) in enumerate(param_df.iterrows()):
             assert len(vals) == 2
             start, end = (try_convert_to_numeric(vals[0]), try_convert_to_numeric(vals[1]))
             assert isinstance(start, type(end))
@@ -369,11 +370,12 @@ if __name__ == "__main__":
     modle_tools_eval_metric = args.modle_tools_eval_metric
 
     sites_for_eval = args.evaluation_sites
-    method = args.optimization_method
 
     epoch = 0
     if args.cmd == "optimize":
+        method = args.optimization_method
         run_optimize()
     else:
         assert args.cmd == "test"
+        method = None
         run_testing()

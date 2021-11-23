@@ -9,7 +9,7 @@ workflow {
     run_stripenn(file(params.reference_matrix_file),
                  params.bin_size,
                  "all")
-    
+
     generate_training_and_test_sites(run_stripenn.out.stripenn_filtered,
                                      params.seed,
                                      params.eval_sites_fraction_for_training)
@@ -62,7 +62,7 @@ workflow {
 
 process generate_training_and_test_sites {
     publishDir "${params.output_dir}", mode: 'copy'
-    
+
     input:
         path input_tsv
         val seed
@@ -89,7 +89,7 @@ process generate_training_and_test_sites {
         df1 = df.sample(n=training_set_size, replace=False, random_state=RandomState(!{seed}))
         df2 = df[~df.index.isin(df1.index)]
         assert df1.shape[0] + df2.shape[0] == df.shape[0]
-        
+
         df1.to_csv(f"{bname}_eval_sites_for_training.tsv", sep="\\t", index=False)
         df2.to_csv(f"{bname}_eval_sites_for_testing.tsv", sep="\\t", index=False)
         '''
@@ -97,7 +97,7 @@ process generate_training_and_test_sites {
 
 process transform_reference_matrix {
     publishDir "${params.output_dir}", mode: 'copy'
-    
+
     cpus params.ncpus
 
     input:
@@ -128,7 +128,7 @@ process transform_reference_matrix {
 
 process run_optimization {
     publishDir "${params.output_dir}/optimization", mode: 'copy'
-    
+
     cpus params.ncpus
 
     input:
@@ -154,14 +154,15 @@ process run_optimization {
         val scoring_method
 
     output:
-        path "*.pickle", emit: stats_pickle
-        path "*.tsv", emit: summary_tsv
+        path "${output_prefix.fileName}_${optimization_method}.pickle", emit: stats_pickle
+        path "${output_prefix.fileName}_${optimization_method}.tsv", emit: summary_tsv
 
     shell:
+        out="${output_prefix.fileName}"
         '''
         optimize_modle_sim_params.py optimize \
                                      --param-space-tsv="!{param_space_file}"                       \
-                                     --output-prefix="!{output_prefix}"                            \
+                                     --output-prefix="!{out}"                            \
                                      --chrom-sizes="!{chrom_sizes}"                                \
                                      --extrusion-barriers="!{extrusion_barriers}"                  \
                                      --evaluation-sites="!{evaluation_sites}"                      \
@@ -186,7 +187,7 @@ process run_optimization {
 
 process test_optimal_params {
     publishDir "${params.output_dir}/test", mode: 'copy'
-    
+
     cpus params.ncpus
 
     input:
@@ -206,7 +207,7 @@ process test_optimal_params {
         val diagonal_width
         val scoring_method
         val num_params_to_test
-    
+
     output:
         path "*.cool", emit: cool
         path "*.bw", emit: bigwig
