@@ -55,7 +55,8 @@ workflow compute_modle_eval_custom_metric {
 process compute_discrete_gauss_difference {
     publishDir params.output_dir, mode: 'copy'
 
-    cpus params.ncpus
+    label 'process_high'
+    time 1.h
 
     input:
         path tgt_cooler
@@ -106,7 +107,8 @@ process compute_discrete_gauss_difference {
 process run_modle_sim {
     publishDir params.output_dir, mode: 'copy'
 
-    cpus params.ncpus
+    label 'process_high'
+    label 'process_short'
 
     input:
         path config
@@ -126,7 +128,8 @@ process run_modle_sim {
 process run_modle_tools_eval_eucl_dist {
     publishDir params.output_dir, mode: 'copy'
 
-    cpus params.ncpus
+    label 'process_low'
+    label 'process_short'
 
     input:
         path input_matrix
@@ -157,7 +160,8 @@ process run_modle_tools_eval_eucl_dist {
 process run_modle_tools_eval_custom {
     publishDir params.output_dir, mode: 'copy'
 
-    cpus params.ncpus
+    label 'process_low'
+    label 'process_short'
 
     input:
         path input_matrix
@@ -181,37 +185,4 @@ process run_modle_tools_eval_custom {
                     -t !{task.cpus}                          \
                     --metric=custom
         '''
-}
-
-
-process transform_matrix_for_modle_tools_eval_custom {
-    publishDir params.output_dir, mode: 'copy'
-
-    cpus params.ncpus
-
-    input:
-        path input_matrix
-        val bin_size
-        val diagonal_width
-        val gaussian_blur_sigma
-        val gaussian_blur_multiplier
-        val binary_discretization_value
-
-    output:
-        path "*_gauss_diff.cool", emit: cool
-
-    shell:
-        out_name="${input_matrix.baseName}_gauss_diff.cool"
-        '''
-        modle_tools transform \
-                    --input-matrix "!{input_matrix}"                             \
-                    --output-matrix "!{out_matrix}"                              \
-                    --bin-size !{bin_size}                                       \
-                    --diagonal-width !{diagonal_width}                           \
-                    --gaussian-blur-sigma !{gaussian_blur_sigma}                 \
-                    --gaussian-blur-multiplier !{gaussian_blur_multiplier}       \
-                    --binary-discretization-value !{binary_discretization_value} \
-                    -t !{task.cpus}                                              \
-        '''
-
 }

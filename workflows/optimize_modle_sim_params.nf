@@ -62,6 +62,8 @@ workflow {
 
 process generate_training_and_test_sites {
     publishDir "${params.output_dir}", mode: 'copy'
+    
+    label 'process_very_short'
 
     input:
         path input_tsv
@@ -97,8 +99,8 @@ process generate_training_and_test_sites {
 
 process transform_reference_matrix {
     publishDir "${params.output_dir}", mode: 'copy'
-
-    cpus params.ncpus
+    
+    label 'process_medium'
 
     input:
         path reference_matrix
@@ -129,8 +131,8 @@ process transform_reference_matrix {
 process run_optimization {
     publishDir "${params.output_dir}/optimization", mode: 'copy'
 
-    cpus params.ncpus
-    echo true
+    label 'process_very_high'
+    label 'process_long'
 
     input:
         path param_space_file
@@ -163,11 +165,11 @@ process run_optimization {
         '''
         optimize_modle_sim_params.py optimize \
                                      --param-space-tsv="!{param_space_file}"                       \
-                                     --output-prefix="!{out}"                            \
+                                     --output-prefix="!{out}"                                      \
                                      --chrom-sizes="!{chrom_sizes}"                                \
                                      --extrusion-barriers="!{extrusion_barriers}"                  \
                                      --evaluation-sites="!{evaluation_sites}"                      \
-                                     --transformed-reference-matrix="!{reference_matrix}"                      \
+                                     --transformed-reference-matrix="!{reference_matrix}"          \
                                      --excluded-chroms="!{excluded_chroms}"                        \
                                      --x0="!{starting_point}"                                      \
                                      --gaussian-blur-sigma-ref="!{blur_sigma_ref}"                 \
@@ -189,7 +191,7 @@ process run_optimization {
 process test_optimal_params {
     publishDir "${params.output_dir}/test", mode: 'copy'
 
-    cpus params.ncpus
+    label 'process_high'
 
     input:
         path optimization_result

@@ -26,9 +26,8 @@ workflow {
 process generate_chrom_sizes {
     publishDir "${params.output_dir}", mode: 'copy'
     
-    cpus 1
-    memory 1G
-
+    label 'process_short'
+    
     input:
         path assembly_report
 
@@ -56,9 +55,6 @@ process generate_chrom_sizes {
 
 process run_mast {
     publishDir "${params.output_dir}", mode: 'copy'
-    
-    cpus Math.min(2, avail_cpus)
-    memory 1G
     
     input:
         path genome_assembly_fa
@@ -91,8 +87,7 @@ process run_mast {
 process convert_mast_to_bed {
     publishDir "${params.output_dir}", mode: 'copy'
     
-    cpus Math.min(4, avail_cpus)
-    memory 1G
+    label 'process_short'
     
     input:
         path mast_output_txt
@@ -129,8 +124,7 @@ process convert_mast_to_bed {
 process generate_extr_barriers_bed {
     publishDir "${params.output_dir}", mode: 'copy'
     
-    cpus Math.min(3, avail_cpus)
-    memory 1G
+    label 'process_short'
     
     input:
         path ctcf_sites_bed

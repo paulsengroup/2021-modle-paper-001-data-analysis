@@ -42,6 +42,8 @@ workflow {
 
 process validate_files {
     publishDir "${params.download_dir}", mode: 'copy'
+    
+    label 'process_short'
 
     input:
         path download
@@ -67,6 +69,8 @@ process rename_and_compress_files {
                                                  assert name_mappings.get(old_name) != null
                                                  name_mappings[old_name]
                                                }
+    label 'process_short'
+    
     input:
         path old_name
         val name_mappings

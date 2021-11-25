@@ -19,7 +19,8 @@ workflow run_stripenn {
 process run_stripenn_compute {
     publishDir "${params.stripenn_output_prefix}", mode: 'copy'
     
-    cpus params.ncpus
+    label 'process_high'
+    label 'process_long'
     
     input:
         path cool
@@ -33,10 +34,6 @@ process run_stripenn_compute {
 
     shell:
         '''
-        set -e
-        set -u
-        set -x
-
         input_name="!{cool}"
         if [[ $input_name == *.mcool ]]; then
             input_name="${input_name}::/resolutions/!{resolution}"
