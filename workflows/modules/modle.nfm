@@ -1,0 +1,217 @@
+nextflow.enable.dsl=2
+
+workflow compute_modle_eval_custom_metric {
+    take:
+        modle_sim_config
+        chrom_sizes
+        extrusion_barriers
+        bin_size
+        diagonal_width
+        reference_matrix
+        gaussian_blur_sigma_ref
+        gaussian_blur_sigma_tgt
+        gaussian_blur_multiplier_ref
+        gaussian_blur_multiplier_tgt
+        binary_discretization_value_ref
+        binary_discretization_value_tgt
+
+    main:
+        run_modle_sim(file(modle_sim_config),
+                      file(chrom_sizes),
+                      file(extrusion_barriers))
+
+        compute_discrete_gauss_difference(run_modle_sim.out.cool,
+                                          file(reference_matrix),
+                                          gaussian_blur_sigma_tgt,
+                                          gaussian_blur_multiplier_tgt,
+                                          binary_discretization_value_tgt,
+                                          gaussian_blur_sigma_ref,
+                                          gaussian_blur_multiplier_ref,
+                                          binary_discretization_value_ref,
+                                          bin_size,
+                                          diagonal_width)
+
+        run_modle_tools_eval_custom(compute_discrete_gauss_difference.out.tgt_cool,
+                                    compute_discrete_gauss_difference.out.ref_cool,
+                                    bin_size,
+                                    diagonal_width)
+        
+        run_modle_tools_eval_eucl_dist(compute_discrete_gauss_difference.out.tgt_cool,
+                                       compute_discrete_gauss_difference.out.ref_cool,
+                                       bin_size,
+                                       diagonal_width)
+
+    emit:
+        raw_cooler=run_modle_sim.out.cool
+        ref_matrix_gauss_diff=compute_discrete_gauss_difference.out.ref_cool
+        tgt_matrix_gauss_diff=compute_discrete_gauss_difference.out.tgt_cool
+        mt_eval_custom_bw=run_modle_tools_eval_custom.out.bw
+        mt_eval_custom_tsv=run_modle_tools_eval_custom.out.tsv
+        mt_eval_eucl_dist_bw=run_modle_tools_eval_eucl_dist.out.bw
+        mt_eval_eucl_dist_tsv=run_modle_tools_eval_eucl_dist.out.tsv
+}
+
+
+process compute_discrete_gauss_difference {
+    publishDir params.output_dir, mode: 'copy'
+
+    cpus params.ncpus
+
+    input:
+        path tgt_cooler
+        path ref_cooler
+        val gaussian_blur_sigma_tgt
+        val gaussian_blur_multiplier_tgt
+        val binary_discretization_value_tgt
+        val gaussian_blur_sigma_ref
+        val gaussian_blur_multiplier_ref
+        val binary_discretization_value_ref
+        val bin_size
+        val diagonal_width
+
+    output:
+        path "${tgt_cooler.baseName}_gauss_diff.cool", emit: tgt_cool
+        path "${ref_cooler.baseName}_gauss_diff.cool", emit: ref_cool
+
+    shell:
+        out_tgt="${tgt_cooler.baseName}_gauss_diff.cool"
+        out_ref="${ref_cooler.baseName}_gauss_diff.cool"
+        '''
+        modle_tools transform \
+                    --input-matrix "!{tgt_cooler}"                                   \
+                    --output-matrix "!{out_tgt}"                                     \
+                    --bin-size !{bin_size}                                           \
+                    --diagonal-width !{diagonal_width}                               \
+                    --gaussian-blur-sigma !{gaussian_blur_sigma_tgt}                 \
+                    --gaussian-blur-multiplier !{gaussian_blur_multiplier_tgt}       \
+                    --binary-discretization-value !{binary_discretization_value_tgt} \
+                    --method difference_of_gaussians                                 \
+                    -t !{task.cpus}                                                  \
+
+        modle_tools transform \
+                    --input-matrix "!{ref_cooler}"                                   \
+                    --output-matrix "!{out_ref}"                                     \
+                    --bin-size !{bin_size}                                           \
+                    --diagonal-width !{diagonal_width}                               \
+                    --gaussian-blur-sigma !{gaussian_blur_sigma_ref}                 \
+                    --gaussian-blur-multiplier !{gaussian_blur_multiplier_ref}       \
+                    --binary-discretization-value !{binary_discretization_value_ref} \
+                    --method difference_of_gaussians                                 \
+                    -t !{task.cpus}                                                  \
+        '''
+}
+
+
+
+process run_modle_sim {
+    publishDir params.output_dir, mode: 'copy'
+
+    cpus params.ncpus
+
+    input:
+        path config
+        path chrom_sizes
+        path extrusion_barriers
+
+    output:
+        path "*.cool", emit: cool
+        path "*.log", emit: log
+
+    shell:
+        '''
+        modle --config "!{config}"
+        '''
+}
+
+process run_modle_tools_eval_eucl_dist {
+    publishDir params.output_dir, mode: 'copy'
+
+    cpus params.ncpus
+
+    input:
+        path input_matrix
+        path reference_matrix
+        val bin_size
+        val diagonal_width
+
+    output:
+        path "*.bw", emit: bw
+        path "*.tsv.gz", emit: tsv
+
+    shell:
+        out_prefix="${input_matrix.baseName}_vs_reference"
+        '''
+        modle_tools eval \
+                    --input-matrix "!{input_matrix}"         \
+                    --output-prefix "!{out_prefix}"          \
+                    --reference-matrix "!{reference_matrix}" \
+                    --bin-size !{bin_size}                   \
+                    --diagonal-width !{diagonal_width}       \
+                    -t !{task.cpus}                          \
+                    --normalize                              \
+                    --metric=eucl_dist
+        '''
+
+}
+
+process run_modle_tools_eval_custom {
+    publishDir params.output_dir, mode: 'copy'
+
+    cpus params.ncpus
+
+    input:
+        path input_matrix
+        path reference_matrix
+        val bin_size
+        val diagonal_width
+
+    output:
+        path "*.bw", emit: bw
+        path "*.tsv.gz", emit: tsv
+
+    shell:
+        out_prefix="${input_matrix.baseName}_vs_reference"
+        '''
+        modle_tools eval \
+                    --input-matrix "!{input_matrix}"         \
+                    --output-prefix "!{out_prefix}"          \
+                    --reference-matrix "!{reference_matrix}" \
+                    --bin-size !{bin_size}                   \
+                    --diagonal-width !{diagonal_width}       \
+                    -t !{task.cpus}                          \
+                    --metric=custom
+        '''
+}
+
+
+process transform_matrix_for_modle_tools_eval_custom {
+    publishDir params.output_dir, mode: 'copy'
+
+    cpus params.ncpus
+
+    input:
+        path input_matrix
+        val bin_size
+        val diagonal_width
+        val gaussian_blur_sigma
+        val gaussian_blur_multiplier
+        val binary_discretization_value
+
+    output:
+        path "*_gauss_diff.cool", emit: cool
+
+    shell:
+        out_name="${input_matrix.baseName}_gauss_diff.cool"
+        '''
+        modle_tools transform \
+                    --input-matrix "!{input_matrix}"                             \
+                    --output-matrix "!{out_matrix}"                              \
+                    --bin-size !{bin_size}                                       \
+                    --diagonal-width !{diagonal_width}                           \
+                    --gaussian-blur-sigma !{gaussian_blur_sigma}                 \
+                    --gaussian-blur-multiplier !{gaussian_blur_multiplier}       \
+                    --binary-discretization-value !{binary_discretization_value} \
+                    -t !{task.cpus}                                              \
+        '''
+
+}
