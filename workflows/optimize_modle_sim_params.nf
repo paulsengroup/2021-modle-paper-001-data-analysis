@@ -130,6 +130,7 @@ process run_optimization {
     publishDir "${params.output_dir}/optimization", mode: 'copy'
 
     cpus params.ncpus
+    echo true
 
     input:
         path param_space_file

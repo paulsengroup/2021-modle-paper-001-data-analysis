@@ -2,7 +2,10 @@
 
 nextflow.enable.dsl=2
 
-// Remove problematic characters from file names
+
+// For some reason importing this function from utils.nfm causes an error like:
+//   Missing process or function with name 'normalize_path_name' -- Did you mean 'normalize_path_name' instead?
+// Remove problematic characters from file names.
 def normalize_path_name(old_path) {
    old_path.replaceAll(/[^A-Za-z0-9._-]/, '_')
 }
@@ -14,15 +17,15 @@ workflow {
     // Read download_list file line by line and store the file content in the urls list
     Channel.fromPath(dls)
             .splitText()
-            .map { 
-                // Lines are formatted like "url\tshort_name"
-                toks = it.trim().split('\t')
-                file(toks[0])
-                }
+            .map {
+                 // Lines are formatted like "url\tshort_name"
+                 toks = it.trim().split('\t')
+                 file(toks[0])
+                 }
             .set { files }
 
     validate_files(files, chksums)
-    
+
     def fn_mappings = [:]
     file(dls)
         .eachLine { line ->
@@ -39,7 +42,7 @@ workflow {
 
 process validate_files {
     publishDir "${params.download_dir}", mode: 'copy'
-    
+
     input:
         path download
         path checksums
@@ -76,7 +79,7 @@ process rename_and_compress_files {
         '''
         if="!{old_name}"
         of="${if%.ok}.new"
-        
+
         # Rename files and compress them
         if [[ $if == *.gz.ok || $if == *.hic.ok || $if == *.mcool.ok ]]; then
             cp "$if" "$of"

@@ -30,7 +30,7 @@ def try_convert_to_numeric(x):
 def eval(bed_file, bwig1, bwig2):
     bed = pd.read_csv(bed_file,
                       sep="\t",
-                      header=1,  # None,
+                      header=0,
                       names=("chrom", "start", "end"),
                       usecols=list(range(3))).drop_duplicates(ignore_index=True)
     bed = bed[~bed["chrom"].isin(excluded_chroms)]
@@ -40,9 +40,8 @@ def eval(bed_file, bwig1, bwig2):
     with pyBigWig.open(bwig1) as bw1, pyBigWig.open(bwig2) as bw2:
         # Fill scores vector
         for (i, (chrom, start, end)) in bed.iterrows():
-            i *= 2
             scores[i] = bw1.stats(chrom, int(start), int(end))[0]
-            scores[i + 1] = bw2.stats(chrom, int(start), int(end))[0]
+            scores[bed.shape[0] + i] = bw2.stats(chrom, int(start), int(end))[0]
 
     # Drop nan and inf values
     scores = scores[(~np.isnan(scores)) & (~np.isinf(scores))]
