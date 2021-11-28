@@ -4,7 +4,7 @@
 
 FROM ghcr.io/robomics/modle:sha-ef7e1f0 AS base
 
-ARG CONTAINER_VERSION=1.0.3
+ARG CONTAINER_VERSION=1.0.4
 ARG PANDAS_VER='1.3.*'
 ARG PYBIGWIG_VER='0.3.*'
 ARG SKOPT_VER='0.9.*'

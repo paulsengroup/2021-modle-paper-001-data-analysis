@@ -91,7 +91,8 @@ def run_modle_tools_transform(input_name, output_name, sigma, sigma_mult, cutoff
            "--gaussian-blur-multiplier", str(sigma_mult),
            "--binary-discretization-value", str(cutoff),
            "-o", output_name,
-           "-w", str(diagonal_width)]
+           "-w", str(diagonal_width),
+           "--threads", str(nthreads)]
 
     run_subprocess(cmd)
 
@@ -103,7 +104,8 @@ def run_modle_tools_eval(input_name, output_name):
            "--reference-matrix", reference_matrix,
            "-o", output_name,
            "--metric", modle_tools_eval_metric,
-           "-w", str(diagonal_width)]
+           "-w", str(diagonal_width),
+           "--threads", str(nthreads)]
 
     run_subprocess(cmd)
 
