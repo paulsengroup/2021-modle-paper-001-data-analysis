@@ -19,7 +19,7 @@ workflow run_stripenn {
 process run_stripenn_compute {
     publishDir "${params.stripenn_output_prefix}", mode: 'copy'
     
-    label 'process_high'
+    label 'process_medium'
     label 'process_long'
     
     input:
