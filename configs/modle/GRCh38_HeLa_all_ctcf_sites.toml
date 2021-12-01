@@ -7,4 +7,5 @@ lefs-per-mbp=20
 ncells=256
 extrusion-barrier-file="GRCh38_HeLa_CTCF_sites_filtered.bed.gz"
 extrusion-barrier-occupancy=0.82
-ctcf-not-occupied-probability-of-transition-to-self 0.6
+ctcf-not-occupied-probability-of-transition-to-self=0.6
+randomize-contacts=true
