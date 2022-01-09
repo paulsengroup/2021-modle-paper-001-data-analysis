@@ -1,0 +1,66 @@
+nextflow.enable.dsl=2
+
+workflow make_plots_md_comparison {
+    take:
+        sanborn2015_pdf
+        sanborn2015_plot_digests
+        //modle_cool
+        //chrom_ranges
+
+    main:
+        extract_plots_from_pdf(file(sanborn2015_pdf), file(sanborn2015_plot_digests))
+
+        convert_plots_to_tsv(extract_plots_from_pdf.out.ppm.collect())
+
+    //emit:
+}
+
+
+process extract_plots_from_pdf {
+    publishDir params.output_dir, mode: 'copy'
+    //label 'process_very_short'
+
+    input:
+        path pdf
+        path name_mappings
+
+    output:
+        path "*.ppm", emit: ppm
+
+    shell:
+        '''
+        mkdir tmp
+        pdfimages -f 36 -l 36 "!{pdf}" ./tmp/out
+
+        shasum -a256 ./tmp/*.ppm | sed 's/[[:space:]]\\+/\\t/g' > checksums.sha256
+
+        while read line || [ -n "$line" ]; do
+            toks=($(echo "$line" | sed 's/[[:space:]]\\+/ /g'))
+            digest="${toks[0]}"
+            new_name="${toks[1]}"
+            old_name="$(grep $digest checksums.sha256 | cut -f 2)"
+
+            mv "$old_name" "$new_name"
+        done < "!{name_mappings}"
+
+        rm -rf ./tmp checksums.sha256
+        '''
+}
+
+process convert_plots_to_tsv {
+    publishDir params.output_dir, mode: 'copy'
+
+    label 'process_very_short'
+
+    input:
+        path plots
+
+    output:
+        path "matrices/*.tsv", emit: tsv
+
+    shell:
+        '''
+        convert_image_to_matrix_sanborn.py --output-dir . *.ppm
+        rm -r plots
+        '''
+}

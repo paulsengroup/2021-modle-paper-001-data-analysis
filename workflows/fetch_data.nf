@@ -85,7 +85,7 @@ process rename_and_compress_files {
         of="${if%.ok}.new"
 
         # Rename files and compress them
-        if [[ $if == *.gz.ok || $if == *.hic.ok || $if == *.mcool.ok ]]; then
+        if [[ $if == *.gz.ok || $if == *.hic.ok || $if == *.mcool.ok || $if == *.pdf ]]; then
             cp "$if" "$of"
         else
             pigz -9c "$if" > "$of"

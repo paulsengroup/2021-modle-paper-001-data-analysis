@@ -6,3 +6,5 @@ containers/cache/
 data/
 sync.sh
 work/
+scratch/
+venv/
