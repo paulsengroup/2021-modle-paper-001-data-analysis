@@ -5,11 +5,11 @@
 FROM fedora:35 AS base
 
 
-ARG CONTAINER_VERSION=1.0.0
+ARG CONTAINER_VERSION=1.0.1
 
 RUN dnf update -y \
     && dnf install -y --setopt=install_weak_deps=False --best        \
-                      zstd pigz gawk sed                             \
+                      gawk pigz sed unzip zstd                       \
     && dnf clean all
 
 ENV SHELL=/usr/bin/bash
