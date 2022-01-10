@@ -1,8 +1,9 @@
-https://ftp.ncbi.nlm.nih.gov/genomes/all/annotation_releases/9606/109.20210514/GCF_000001405.39_GRCh38.p13/GCF_000001405.39_GRCh38.p13_assembly_report.txt	GRCh38_assembly_report.txt.gz
-https://ftp.ncbi.nlm.nih.gov/genomes/all/annotation_releases/9606/109.20210514/GCF_000001405.39_GRCh38.p13/GCF_000001405.39_GRCh38.p13_genomic.fna.gz	GRCh38_genome_assembly.fna.gz
-https://ftp.ncbi.nlm.nih.gov/genomes/all/annotation_releases/9606/109.20210514/GCF_000001405.39_GRCh38.p13/GCF_000001405.39_GRCh38.p13_genomic.gtf.gz	GRCh38_genome_annotation.gtf.gz
+https://jaspar.genereg.net/download/data/2022/CORE/JASPAR2022_CORE_non-redundant_pfms_meme.zip	JASPAR_2022_core.zip
+https://www.ncbi.nlm.nih.gov/geo/download/?acc=GSE63525&format=file&file=GSE63525%5FGM12878%5Fdilution%5Fcombined%2Ehic	GM12878_Sanborn2015.hic
 https://www.encodeproject.org/files/ENCFF111RWV/@@download/ENCFF111RWV.bed.gz	GRCh38_HeLa_CTCF_chip_narrow_peaks.bed.gz
-https://www.encodeproject.org/files/ENCFF239FBO/@@download/ENCFF239FBO.bed.gz	GRCh38_HeLa_RAD21_chip_narrow_peaks.bed.gz
 https://4dn-open-data-public.s3.amazonaws.com/fourfront-webprod/wfoutput/8366b542-5bcd-4cbf-88f8-deace51dd74f/4DNFIBM9QCFG.mcool	GRCh38_HeLa_HiC_4DNFIBM9QCFG.mcool
-https://jaspar.genereg.net/api/v1/matrix/MA0139/?format=meme&release=9	CTCF_motif.meme.gz
+https://www.encodeproject.org/files/ENCFF239FBO/@@download/ENCFF239FBO.bed.gz	GRCh38_HeLa_RAD21_chip_narrow_peaks.bed.gz
+https://ftp.ncbi.nlm.nih.gov/genomes/all/annotation_releases/9606/109.20210514/GCF_000001405.39_GRCh38.p13/GCF_000001405.39_GRCh38.p13_assembly_report.txt	GRCh38_assembly_report.txt.gz
+https://ftp.ncbi.nlm.nih.gov/genomes/all/annotation_releases/9606/109.20210514/GCF_000001405.39_GRCh38.p13/GCF_000001405.39_GRCh38.p13_genomic.gtf.gz	GRCh38_genome_annotation.gtf.gz
+https://ftp.ncbi.nlm.nih.gov/genomes/all/annotation_releases/9606/109.20210514/GCF_000001405.39_GRCh38.p13/GCF_000001405.39_GRCh38.p13_genomic.fna.gz	GRCh38_genome_assembly.fna.gz
 https://www.pnas.org/content/pnas/suppl/2015/10/23/1518552112.DCSupplemental/pnas.1518552112.sapp.pdf	Sanborn2015_suppl.pdf

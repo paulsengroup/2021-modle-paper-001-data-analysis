@@ -42,7 +42,7 @@ workflow {
 
 process validate_files {
     publishDir "${params.download_dir}", mode: 'copy'
-    
+
     label 'process_short'
 
     input:
@@ -70,7 +70,7 @@ process rename_and_compress_files {
                                                  name_mappings[old_name]
                                                }
     label 'process_short'
-    
+
     input:
         path old_name
         val name_mappings
@@ -85,7 +85,7 @@ process rename_and_compress_files {
         of="${if%.ok}.new"
 
         # Rename files and compress them
-        if [[ $if == *.gz.ok || $if == *.hic.ok || $if == *.mcool.ok || $if == *.pdf ]]; then
+        if [[ $if == *.gz.ok || $if == *.hic.ok || $if == *.mcool.ok || $if == *.pdf.ok || $if == *.zip.ok ]]; then
             cp "$if" "$of"
         else
             pigz -9c "$if" > "$of"
