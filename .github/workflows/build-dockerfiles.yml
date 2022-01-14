@@ -24,6 +24,7 @@ jobs:
       matrix:
         image-name: ["bedtools",
                      "cooltools",
+                     "hoomd-blue",
                      "plotting",
                      "param-optimization",
                      "stripenn",
@@ -62,8 +63,8 @@ jobs:
         working-directory: ${{ github.workspace }}/containers
         run: |
           ls ${{ matrix.image-name }}-v*.Dockerfile
-          ver="$(grep -P 'ARG CONTAINER_VERSION=[\d\.]+$' ${{ matrix.image-name }}-v*.Dockerfile |
-                 head -n 1 | grep -oP '[\d\.]+')"
+          ver="$(grep -E 'ARG CONTAINER_VERSION=[[:alnum:].-]+$' ${{ matrix.image-name }}-v*.Dockerfile |
+                 head -n 1 | grep -oE '[[:alnum:].-]+$')"
 
           echo "${{ matrix.image-name }} version: $ver"
           echo "::set-output name=ver::$ver"

@@ -2,9 +2,10 @@
 #
 # SPDX-License-Identifier: MIT
 
-FROM ghcr.io/robomics/modle:sha-b76b0a6 AS base
+FROM ghcr.io/robomics/modle:sha-f005bfb AS base
 
-ARG CONTAINER_VERSION=1.0.5
+ARG CONTAINER_VERSION=1.0.6
+ARG BIOFRAME_VER='0.3.*'
 ARG PANDAS_VER='1.3.*'
 ARG PYBIGWIG_VER='0.3.*'
 ARG SKOPT_VER='0.9.*'
@@ -25,7 +26,8 @@ RUN apt-get update \
                        python3     \
                        python3-dev \
                        python3-pip \
-    && pip install pandas==${PANDAS_VER}             \
+    && pip install bioframe==${BIOFRAME_VER}         \
+                   pandas==${PANDAS_VER}             \
                    pyBigWig==${PYBIGWIG_VER}         \
                    scikit-optimize==${SKOPT_VER}     \
     && apt-get remove -y gcc python3-dev python3-pip \
@@ -35,6 +37,7 @@ COPY scripts /tmp/scripts
 
 RUN install -d /usr/local/bin \
     && install -D -m 755 /tmp/scripts/optimize_modle_sim_params.py /usr/local/bin/ \
+    && install -D -m 755 /tmp/scripts/optimize_extr_barriers_strengths.py /usr/local/bin/ \
     && rm -r /tmp/scripts
 
 RUN optimize_modle_sim_params.py --help

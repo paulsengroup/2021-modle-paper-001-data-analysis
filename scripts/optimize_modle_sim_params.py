@@ -11,6 +11,7 @@ import tempfile
 import uuid
 from multiprocessing import cpu_count
 
+import bioframe as bf
 import numpy as np
 import pandas as pd
 import pyBigWig
@@ -28,15 +29,22 @@ def try_convert_to_numeric(x):
 
 
 def eval(bed_file, bwig1, bwig2):
-    bed = pd.read_csv(bed_file,
-                      sep="\t",
-                      header=0,
-                      names=("chrom", "start", "end"),
-                      usecols=list(range(3))).drop_duplicates(ignore_index=True)
+    cols = ["chrom", "start", "end"]
+    bed = bf.read_table(bed_file,
+                        header=0,
+                        names=cols,
+                        usecols=list(range(3))).drop_duplicates(ignore_index=True)
     bed = bed[~bed["chrom"].isin(excluded_chroms)]
 
-    scores = np.empty(bed.shape[0] * 2, dtype=float)
+    if chrom_subranges is not None:
+        intervals = bf.read_table(chrom_subranges,
+                                  header=None,
+                                  names=cols,
+                                  usecols=list(range(3))).drop_duplicates(ignore_index=True)
 
+        bed = bf.overlap(bed, intervals, how="left").dropna()[cols]
+
+    scores = np.empty(bed.shape[0] * 2, dtype=float)
     with pyBigWig.open(bwig1) as bw1, pyBigWig.open(bwig2) as bw2:
         # Fill scores vector
         for (i, (chrom, start, end)) in bed.iterrows():
@@ -74,6 +82,8 @@ def run_modle_sim(params):
            "--randomize-contacts",
            "--threads", str(nthreads),
            "--diagonal-width", str(diagonal_width)]
+    if chrom_subranges is not None:
+        cmd.extend(["--chrom-subranges", chrom_subranges])
 
     assert len(param_df.index) == len(params)
     for param, val in zip(param_df.index, params):
@@ -165,6 +175,8 @@ def make_cli():
     def define_common_arguments(p):
         p.add_argument("--chrom-sizes",
                        help="Path to chrom.sizes file", required=True)
+        p.add_argument("--chrom-subranges",
+                       help="Path to BED file with chrom. subranges")
         p.add_argument("--diagonal-width",
                        default=int(3e6),
                        type=int)
@@ -356,6 +368,7 @@ if __name__ == "__main__":
 
     diagonal_width = int(args.diagonal_width)
     chrom_sizes = args.chrom_sizes
+    chrom_subranges = args.chrom_subranges
     extr_barriers = args.extrusion_barriers
     reference_matrix = args.transformed_reference_matrix
     excluded_chroms = set(itertools.chain.from_iterable([str(tok).split(",") for tok in args.excluded_chroms]))
