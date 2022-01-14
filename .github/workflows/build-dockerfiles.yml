@@ -25,6 +25,8 @@ jobs:
         image-name: ["bedtools",
                      "cooltools",
                      "hoomd-blue",
+                     "hoomd-blue-benchmark",
+                     "modle-benchmark",
                      "plotting",
                      "param-optimization",
                      "stripenn",
