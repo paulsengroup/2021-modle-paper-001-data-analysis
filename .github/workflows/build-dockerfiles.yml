@@ -24,7 +24,6 @@ jobs:
       matrix:
         image-name: ["bedtools",
                      "cooltools",
-                     "hoomd-blue",
                      "hoomd-blue-benchmark",
                      "modle-benchmark",
                      "plotting",
