@@ -28,6 +28,7 @@ jobs:
                      "modle-benchmark",
                      "plotting",
                      "param-optimization",
+                     "py-utils",
                      "stripenn",
                      "utils"]
 
