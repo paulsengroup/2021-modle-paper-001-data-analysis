@@ -1,8 +1,9 @@
 #!/usr/bin/env python
 import argparse
 import json
-import numpy as np
 import os
+
+import numpy as np
 from hoomd import *
 from hoomd import md, deprecated
 from hoomd.deprecated.init import create_random_polymers
@@ -24,6 +25,9 @@ def make_cli():
     cli.add_argument("--initial-structure",
                      type=str,
                      help="Path to initial structure")
+    cli.add_argument("--skip-lj-collapse",
+                     type=bool,
+                     default=False)
     return cli
 
 
@@ -211,6 +215,7 @@ def generate_or_load_initial_structure(length, seed, path_to_structure=None):
         print(f"*** Loading initial coordinates from file \"{path_to_structure}\"...")
         s = np.loadtxt(path_to_structure)
         assert len(s) == length
+        return s
 
     # generate self-avoiding walk for initial conditions
     return get_poly_coords(length, seed)
@@ -260,13 +265,11 @@ def init_output_files(out_dir, period):
 def run_simulation_loop(num_extr, steps_per_extr, nbonds):
     for sndx in range(num_extr):
         # delete existing loop bonds.
-        # This is ~2x as fast as the original code on my dev system
-        map(lambda tag: system.bonds.remove(bnd.tag),
-            (bnd.tag for bnd in system.bonds if bnd.type == 'loop'))
+        map(lambda tag: system.bonds.remove(tag),
+            (bnd.tag for bnd in system.bonds if bnd.type == "loop"))
 
         # set new loop bonds
-        # This is ~1.5x as fast as the original code on my dev system
-        map(lambda b1, b2: system.bonds.add("loop",  # 2.7k
+        map(lambda b1, b2: system.bonds.add("loop",
                                             b1 - 1,
                                             b2 - 1),
             extr_bonds[sndx, :nbonds])
@@ -310,7 +313,7 @@ if __name__ == "__main__":
 
     ###############
     # Run LJ collapse
-    if not args.initial_structure:
+    if not args.skip_lj_collapse:
         run(params["steps"] + 1)
 
     ###############
