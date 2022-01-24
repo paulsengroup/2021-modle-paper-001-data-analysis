@@ -13,9 +13,7 @@ RUN dnf update -y \
     && dnf clean all
 
 ENV SHELL=/usr/bin/bash
-ENV PATH='/usr/local/bin:/usr/bin'
 
 LABEL maintainer='Roberto Rossini <roberros@uio.no>'
 LABEL version=${CONTAINER_VERSION}
 WORKDIR /data
-ENTRYPOINT ["/usr/bin/bash"]
