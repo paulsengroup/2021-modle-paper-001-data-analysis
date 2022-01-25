@@ -237,8 +237,6 @@ process benchmark_hoomd_cpu_weak_scaling {
 
         export -f run_hoomd
 
-        run_hoomd
-
         # Here the tee call is used to echo errors to stderr
         report="$(command time -f '%e %S %U %M' bash -c "run_hoomd" |&
                     tee >(cat 1>&2) |
