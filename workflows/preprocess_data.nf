@@ -5,20 +5,42 @@ nextflow.enable.dsl=2
 avail_cpus = Runtime.runtime.availableProcessors()
 
 workflow {
+    grch37_bname = "${params.grch37_assembly_name_short}"
+    grch38_bname = "${params.grch38_assembly_name_short}"
 
-    generate_chrom_sizes(file(params.assembly_report))
+    bnames = channel.of(grch37_bname, grch38_bname)
+
+    assembly_reports = channel.of(file(params.grch37_assembly_report),
+                                  file(params.grch38_assembly_report))
+
+    generate_chrom_sizes(bnames,
+                         assembly_reports)
+
+    chrom_sizes = generate_chrom_sizes.out.chrom_sizes.toSortedList(
+        { f1, f2 -> file(f1).getBaseName() <=> file(f2).getBaseName() }
+    ).flatten()
+    chrom_sizes_bed = generate_chrom_sizes.out.bed.toSortedList(
+        { f1, f2 -> file(f1).getBaseName() <=> file(f2).getBaseName() }
+    ).flatten()
+
+    grch37_chrom_sizes = chrom_sizes.first()
+    grch38_chrom_sizes = chrom_sizes.last()
+
+    grch38_chrom_sizes_bed = chrom_sizes_bed.last()
 
     extract_meme_motif_from_zip(file(params.jaspar_2022_core_zip),
                                 params.motif_name)
 
     motif = extract_meme_motif_from_zip.out.meme
-    run_mast(file(params.genome_assembly),
+    run_mast("${grch38_bname}_CTCF",
+             file(params.grch38_genome_assembly),
              motif)
 
     convert_mast_to_bed(run_mast.out.txt_gz,
-                        generate_chrom_sizes.out.bed)
+                        grch38_chrom_sizes_bed)
 
-    generate_extr_barriers_bed(convert_mast_to_bed.out.bed_gz,
+    generate_extr_barriers_bed("${grch38_bname}_${params.cell_line_name}",
+                               convert_mast_to_bed.out.bed_gz,
                                file(params.hela_ctcf_chip),
                                file(params.hela_rad21_chip))
 
@@ -33,15 +55,16 @@ process generate_chrom_sizes {
     label 'process_short'
 
     input:
+        val assembly_name
         path assembly_report
 
     output:
-        path "${params.assembly_name_short}.bed", emit: bed
-        path "${params.assembly_name_short}.chrom.sizes", emit: chrom_sizes
+        path "${assembly_name}.bed", emit: bed
+        path "${assembly_name}.chrom.sizes", emit: chrom_sizes
 
     shell:
-        out_bed = "${params.assembly_name_short}.bed"
-        out = "${params.assembly_name_short}.chrom.sizes"
+        out_bed = "${assembly_name}.bed"
+        out = "${assembly_name}.chrom.sizes"
         '''
         set -e
         set -u
@@ -61,14 +84,15 @@ process run_mast {
     publishDir "${params.output_dir}", mode: 'copy'
 
     input:
+        val bname
         path genome_assembly_fa
-        path ctcf_motif_meme
+        path motif_meme
 
     output:
-        path "${params.assembly_name_short}_${params.cell_line_name}_CTCF_mast_hits.txt.gz", emit: txt_gz
+        path "${bname}_mast_hits.txt.gz", emit: txt_gz
 
     shell:
-        out = "${params.assembly_name_short}_${params.cell_line_name}_CTCF_mast_hits.txt.gz"
+        out = "${bname}_mast_hits.txt.gz"
         """
         set -e
         set -u
@@ -77,9 +101,9 @@ process run_mast {
         # MAST does not like gzipped files nor FIFOs, so we have to actually write the inflated reference to disk
         gzip -dc "$genome_assembly_fa" > ga.tmp.fa
 
-        mast -hit_list          \
-             "$ctcf_motif_meme" \
-             ga.tmp.fa          |
+        mast -hit_list     \
+             "$motif_meme" \
+             ga.tmp.fa     |
         gzip -9 > "$out"
 
         rm -f ga.tmp.fa
@@ -96,14 +120,15 @@ process convert_mast_to_bed {
         path chrom_sizes_bed
 
     output:
-        path "${params.assembly_name_short}_${params.cell_line_name}_CTCF_mast_hits.bed.gz", emit: bed_gz
+        path "*_mast_hits.bed.gz", emit: bed_gz
 
     shell:
-        out = "${params.assembly_name_short}_${params.cell_line_name}_CTCF_mast_hits.bed.gz"
         '''
         set -e
         set -u
         set -o pipefail
+
+        outname="$(basename "!{mast_output_txt}" .txt.gz).bed.gz"
 
         mkfifo tmp.fifo
         # Converts MAST output to BED format
@@ -116,7 +141,7 @@ process convert_mast_to_bed {
         awk -F $'\t' 'BEGIN { OFS=FS } NR==FNR{chroms[$4]=$1;next} { if ($1 in chroms) { print chroms[$1],$2,$3,$4,0,$6 } else { print $1,$2,$3,$4,0,$6 } }' \
             "!{chrom_sizes_bed}" \
             tmp.fifo             |
-        gzip -9 > "!{out}"
+        gzip -9 > "$outname"
 
         rm -f tmp.fifo
         '''
@@ -154,15 +179,16 @@ process generate_extr_barriers_bed {
     label 'process_short'
 
     input:
+        val bname
         path ctcf_sites_bed
         path ctcf_chip_peaks
         path rad21_chip_peaks
 
     output:
-        path "${params.assembly_name_short}_${params.cell_line_name}_CTCF_sites_filtered.bed.gz", emit: bed_gz
+        path "${bname}_CTCF_sites_filtered.bed.gz", emit: bed_gz
 
     shell:
-        out = "${params.assembly_name_short}_${params.cell_line_name}_CTCF_sites_filtered.bed.gz"
+        out = "${bname}_CTCF_sites_filtered.bed.gz"
         """
         set -e
         set -u
@@ -204,7 +230,7 @@ process generate_extr_barriers_bed {
 process convert_hic_to_mcool {
     publishDir "${params.output_dir}", mode: 'copy'
 
-    label 'process_long'
+    label 'process_very_long'
 
     input:
         path hic
