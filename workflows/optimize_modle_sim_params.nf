@@ -62,7 +62,7 @@ workflow {
 
 process generate_training_and_test_sites {
     publishDir "${params.output_dir}", mode: 'copy'
-    
+
     label 'process_very_short'
 
     input:
@@ -99,7 +99,7 @@ process generate_training_and_test_sites {
 
 process transform_reference_matrix {
     publishDir "${params.output_dir}", mode: 'copy'
-    
+
     label 'process_medium'
 
     input:
@@ -132,7 +132,7 @@ process run_optimization {
     publishDir "${params.output_dir}/optimization", mode: 'copy'
 
     label 'process_very_high'
-    label 'process_long'
+    label 'process_very_long'
 
     input:
         path param_space_file

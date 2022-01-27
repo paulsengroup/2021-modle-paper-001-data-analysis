@@ -18,10 +18,10 @@ workflow run_stripenn {
 
 process run_stripenn_compute {
     publishDir "${params.stripenn_output_prefix}", mode: 'copy'
-    
+
     label 'process_medium'
-    label 'process_long'
-    
+    label 'process_very_long'
+
     input:
         path cool
         val resolution
@@ -37,7 +37,7 @@ process run_stripenn_compute {
         input_name="!{cool}"
         if [[ $input_name == *.mcool ]]; then
             input_name="${input_name}::/resolutions/!{resolution}"
-        fi    
+        fi
 
         # Apparently --norm and --chrom are required in order to get stripenn
         # to work reliably
