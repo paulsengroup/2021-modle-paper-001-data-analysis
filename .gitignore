@@ -7,4 +7,4 @@ data/
 sync.sh
 work/
 scratch/
-venv/
+venvs/
