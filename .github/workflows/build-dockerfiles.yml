@@ -26,7 +26,6 @@ jobs:
                      "cooltools",
                      "hoomd-blue-benchmark",
                      "modle-benchmark",
-                     "plotting",
                      "param-optimization",
                      "py-utils",
                      "stripenn",
