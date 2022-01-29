@@ -1,0 +1,214 @@
+nextflow.enable.dsl=2
+
+
+workflow make_heatmap_comparison {
+    main:
+        extract_plots_from_pdf(file(params.sanborn2015_suppl_pdf),
+                               file(params.sanborn2015_plot_digests))
+
+        convert_images_to_cool(file(params.convert_images_to_cool_script),
+                               extract_plots_from_pdf.out.ppm,
+                               file(params.chrom_sizes),
+                               file(params.chrom_range_mappings),
+                               params.bin_size,
+                               params.assembly_name)
+
+        liftover_cool(file(params.liftover_cool_script),
+                      file(params.hic_cool),
+                      file(params.chrom_sizes),
+                      file(params.chrom_range_mappings),
+                      params.bin_size,
+                      params.assembly_name)
+
+        run_modle(file(params.modle_config),
+                  file(params.chrom_sizes),
+                  file(params.chrom_ranges_hic_cmp),
+                  file(params.extr_barriers))
+
+
+        plot_comparison(file(params.plot_comparison_script),
+                        liftover_cool.out.cool,
+                        convert_images_to_cool.out.cool,
+                        run_modle.out.cool,
+                        file(params.microc_cool),
+                        file(params.chrom_ranges_hic_cmp),
+                        params.chrom_ranges_microc_cmp,
+                        params.bin_size,
+                        params.assembly_name,
+                        params.color_maps,
+                        params.color_scale_intervals)
+
+    emit:
+        plot=plot_comparison.out.plot
+        md_cool=liftover_cool.out.cool
+        modle_cool=run_modle.out.cool
+}
+
+
+process extract_plots_from_pdf {
+    label 'process_very_short'
+
+    input:
+        path pdf
+        path name_mappings
+
+    output:
+        path "*.ppm", emit: ppm
+
+    shell:
+        '''
+        mkdir tmp
+        pdfimages -f 36 -l 36 "!{pdf}" ./tmp/out
+
+        shasum -a256 ./tmp/*.ppm | sed 's/[[:space:]]\\+/\\t/g' > checksums.sha256
+
+        while read line || [ -n "$line" ]; do
+            toks=($(echo "$line" | sed 's/[[:space:]]\\+/ /g'))
+            digest="${toks[0]}"
+            new_name="${toks[1]}"
+            old_name="$(grep $digest checksums.sha256 | cut -f 2)"
+
+            mv "$old_name" "$new_name"
+        done < "!{name_mappings}"
+
+        rm -rf ./tmp checksums.sha256
+        '''
+}
+
+process convert_images_to_cool {
+    label 'process_very_short'
+
+    input:
+        path script
+        path images
+        path chrom_sizes
+        path chrom_ranges_bedpe
+        val bin_size
+        val assembly_name
+
+    output:
+        path "*.cool", emit: cool
+
+    shell:
+        '''
+        cut -f 4-6 '!{chrom_ranges_bedpe}' > chrom_ranges.bed
+        ./convert_images_to_cool.py --input-pictures !{images}          \
+                                    --output-dir .                      \
+                                    --chrom-sizes '!{chrom_sizes}'      \
+                                    --chrom-ranges-bed chrom_ranges.bed \
+                                    --bin-size !{bin_size}              \
+                                    --assembly-name '!{assembly_name}'
+        rm chrom_ranges.bed
+        '''
+}
+
+process liftover_cool {
+    publishDir params.heatmap_comparison_output_dir, mode: 'copy',
+                                  saveAs: { "sanborn2015_md.cool" }
+    label 'process_short'
+
+    input:
+        path script
+        path input_cool
+        path chrom_sizes
+        path chrom_ranges
+        val bin_size
+        val assembly_name
+
+    output:
+        path "*.cool", emit: cool
+
+    shell:
+        '''
+        outname="!{assembly_name}_$(basename '!{input_cool}' .mcool)_!{bin_size}.cool"
+        ./liftover_matrix_cool.py --input-cool '!{input_cool}::/resolutions/!{bin_size}'   \
+                                  --output-cool "$outname"                                 \
+                                  --chrom-sizes '!{chrom_sizes}'                           \
+                                  --chrom-ranges '!{chrom_ranges}'                         \
+                                  --assembly-name '!{assembly_name}'
+        '''
+}
+
+process plot_comparison {
+    publishDir params.heatmap_comparison_output_dir, mode: 'copy',
+                                  saveAs: { "gm12878_chr_3_5_7_heatmap_comparison.png" }
+    label 'process_very_short'
+
+    input:
+        path script
+        path hic_cool
+        path md_cool
+        path modle_cool
+        path microc_cool
+        path chrom_ranges_hic_cmp
+        val chrom_ranges_microc_cmp
+        val bin_size
+        val assembly_name
+        val color_maps
+        val color_scale_intervals
+
+    output:
+        path "*.svg", emit: plot
+
+    shell:
+        '''
+
+        make_cool_uri () {
+            path="$1"
+            res="$2"
+
+            if [ $path == *.mcool ]; then
+                echo "$path::/resolutions/$res"
+            else
+                echo "$path"
+            fi
+        }
+
+        hic_cool="$(make_cool_uri '!{hic_cool}' !{bin_size})"
+        md_cool="$(make_cool_uri '!{md_cool}' !{bin_size})"
+        modle_cool="$(make_cool_uri '!{modle_cool}' !{bin_size})"
+        microc_cool="$(make_cool_uri '!{microc_cool}' !{bin_size})"
+
+        ./make_heatmap_comparison_plot.py                                                \
+            --path-to-hic-cool "$hic_cool"                                       \
+            --path-to-md-cool "$md_cool"                                         \
+            --path-to-modle-cool "$modle_cool"                                   \
+            --path-to-microc-cool "$microc_cool"                                 \
+            --color-maps '!{color_maps}'                                         \
+            --color-scale-intervals '!{color_scale_intervals}'                   \
+            --path-to-chrom-subranges-hic-comparison '!{chrom_ranges_hic_cmp}'   \
+            --chrom-subrange-microc-comparison-ucsc '!{chrom_ranges_microc_cmp}' \
+            --output-name '!{assembly_name}_comparison.svg'
+        '''
+}
+
+process run_modle {
+    publishDir params.heatmap_comparison_output_dir, mode: 'copy',
+                                  saveAs: { "modle_gm12878_chr_3_5_7_comparison.cool" }
+    label 'process_very_short'
+
+    input:
+        path config
+        path chrom_sizes
+        path chrom_subranges
+        path extr_barriers
+
+    output:
+        path "*.cool", emit: cool
+
+    shell:
+        '''
+        mkdir out
+
+        sed 's|^chrom-sizes=.*|chrom-sizes="!{chrom_sizes}"|' "!{config}" |
+        sed 's|^chrom-subranges=.*|chrom-subranges="!{chrom_subranges}"|' |
+        sed 's|^extrusion-barrier-file=.*|extrusion-barrier-file="!{extr_barriers}"|' |
+        sed 's|^threads=.*|threads=!{task.cpus}|' |
+        sed 's|^output-prefix=.*|output-prefix=out/modle|' > out/config.tmp.toml
+
+        modle --config out/config.tmp.toml
+
+        mv out/*.cool .
+        rm -r out/
+        '''
+}

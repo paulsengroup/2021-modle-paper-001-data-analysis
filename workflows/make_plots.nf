@@ -2,9 +2,9 @@
 
 nextflow.enable.dsl=2
 
-include { make_plots_md_comparison } from './modules/make_plots/modle_md_comparison.nfm' addParams(output_dir: params.output_dir)
+include { make_heatmap_comparison } from './modules/make_plots/heatmap_comparison.nfm' params(params)
+//include { plot_benchmarks } from './modules/make_plots/benchmarks.nfm'
 
 workflow {
-    make_plots_md_comparison(file(params.sanborn2015_suppl_pdf),
-                             file(params.sanborn2015_plot_digests))
+    make_heatmap_comparison()
 }
