@@ -76,7 +76,7 @@ process rename_and_compress_files {
         val name_mappings
 
     output:
-        path "${old_name.baseName}.new"
+        path "*.new"
         val 1, emit: flag
 
     shell:
