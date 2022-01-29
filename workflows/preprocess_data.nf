@@ -47,6 +47,7 @@ workflow {
     convert_hic_to_mcool(file(params.gm12878_sanborn2015_hic))
 
     rename_chromosomes_mcool(convert_hic_to_mcool.out.mcool)
+    balance_mcool(rename_chromosomes_mcool.out.mcool)
 }
 
 process generate_chrom_sizes {
@@ -253,18 +254,13 @@ process convert_hic_to_mcool {
 }
 
 process rename_chromosomes_mcool {
-    publishDir "${params.output_dir}", mode: 'copy',
-                                       saveAs: { fname ->
-                                                 file(fname).getBaseName() // Trim .new
-                                               }
-
     label 'process_short'
 
     input:
         path mcool
 
     output:
-        path "*.mcool.new", emit: mcool
+        path "*.mcool.tmp", emit: mcool
 
     shell:
         '''
@@ -279,12 +275,46 @@ process rename_chromosomes_mcool {
         pattern = re.compile(r"^chrom|chr", re.IGNORECASE)
 
         input_mcool = "!{mcool}"
-        output_mcool = os.path.basename(input_mcool.strip()) + ".new"
+        output_mcool = os.path.basename(input_mcool.strip()) + ".tmp"
         shutil.copyfile(input_mcool, output_mcool)
 
         for path in cooler.fileops.list_coolers(input_mcool):
             c = cooler.Cooler(f"{output_mcool}::{path}")
             mappings = {chrom: "chr" + pattern.sub("", chrom, 1) for chrom in c.chromnames}
             cooler.rename_chroms(c, mappings)
+        '''
+}
+
+process balance_mcool {
+    publishDir "${params.output_dir}", mode: 'copy',
+                                       saveAs: { fname ->
+                                                 file(fname).getBaseName() // Trim .new
+                                               }
+    label 'process_long'
+    label 'process_high'
+
+    memory {
+        // 750 MB/core
+        750e6 * task.cpus * task.attempt as Long
+    }
+
+    input:
+        path mcool
+
+    output:
+        path "*.mcool.new", emit: mcool
+
+    shell:
+        '''
+        mapfile -t dsets < \
+             <(cooler info '!{mcool}' |&
+               grep 'KeyError' |
+               grep -o '/resolutions/[[:digit:]]\\+')
+
+        mcool_out="$(basename '!{mcool}' .tmp).new"
+        cp '!{mcool}' "$mcool_out"
+        for dset in "${dsets[@]}"; do
+            cooler balance -p !{task.cpus} "${mcool_out}::$dset"
+        done
         '''
 }
