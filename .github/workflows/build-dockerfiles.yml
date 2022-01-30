@@ -25,6 +25,7 @@ jobs:
         image-name: ["bedtools",
                      "cooltools",
                      "hoomd-blue-benchmark",
+                     "microc-preprocessing",
                      "modle-benchmark",
                      "param-optimization",
                      "py-utils",
