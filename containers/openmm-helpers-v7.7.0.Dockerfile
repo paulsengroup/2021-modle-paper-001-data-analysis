@@ -16,8 +16,10 @@ ENV SHELL=/bin/bash
 
 RUN micromamba install -y \
     -c conda-forge \
+    -c bioconda \
     'biopython>=1.79' \
     click \
+    'cooler>=0.8.11' \
     cudatoolkit=$CUDA_VERSION \
     Cython \
     gcc \
