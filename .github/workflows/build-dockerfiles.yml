@@ -27,6 +27,7 @@ jobs:
                      "hoomd-blue-benchmark",
                      "microc-preprocessing",
                      "modle-benchmark",
+                     "openmm-benchmark",
                      "openmm-helpers",
                      "param-optimization",
                      "py-utils",
