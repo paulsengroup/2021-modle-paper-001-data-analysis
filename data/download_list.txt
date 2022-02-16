@@ -1,5 +1,9 @@
 https://ftp.ncbi.nlm.nih.gov/geo/series/GSE63nnn/GSE63525/suppl/GSE63525_GM12878_insitu_primary%2Breplicate_combined.hic	GRCh37_GM12878_Sanborn2015.hic
 https://ftp.ncbi.nlm.nih.gov/genomes/all/annotation_releases/9606/105.20201022/GCF_000001405.25_GRCh37.p13/GCF_000001405.25_GRCh37.p13_assembly_report.txt	GRCh37_assembly_report.txt.gz
+https://www.encodeproject.org/files/ENCFF473IZV/@@download/ENCFF473IZV.bigWig	GRCh38_H1_CTCF_chip_fold_change.bigwig
+https://www.encodeproject.org/files/ENCFF821AQO/@@download/ENCFF821AQO.bed.gz	GRCh38_H1_CTCF_chip_narrow_peaks.bed.gz
+https://www.encodeproject.org/files/ENCFF913JGA/@@download/ENCFF913JGA.bigWig	GRCh38_H1_RAD21_chip_fold_change.bigwig
+https://www.encodeproject.org/files/ENCFF255FRL/@@download/ENCFF255FRL.bed.gz	GRCh38_H1_RAD21_chip_narrow_peaks.bed.gz
 https://4dn-open-data-public.s3.amazonaws.com/fourfront-webprod/wfoutput/8600d037-9af0-477d-9e39-fec95552b64d/4DNFI6HDY7WZ.mcool	GRCh38_H1_hESC_HiC_4DNFI6HDY7WZ.mcool
 https://4dn-open-data-public.s3.amazonaws.com/fourfront-webprod/wfoutput/d13aa1ea-053c-4113-94fe-a1e7ab1dbbab/4DNFI9GMP2J8.mcool	GRCh38_H1_hESC_microC_4DNFI9GMP2J8.mcool
 https://www.encodeproject.org/files/ENCFF111RWV/@@download/ENCFF111RWV.bed.gz	GRCh38_HeLa_CTCF_chip_narrow_peaks.bed.gz
@@ -8,5 +12,5 @@ https://www.encodeproject.org/files/ENCFF239FBO/@@download/ENCFF239FBO.bed.gz	GR
 https://ftp.ncbi.nlm.nih.gov/genomes/all/annotation_releases/9606/109.20210514/GCF_000001405.39_GRCh38.p13/GCF_000001405.39_GRCh38.p13_assembly_report.txt	GRCh38_assembly_report.txt.gz
 https://ftp.ncbi.nlm.nih.gov/genomes/all/annotation_releases/9606/109.20210514/GCF_000001405.39_GRCh38.p13/GCF_000001405.39_GRCh38.p13_genomic.gtf.gz	GRCh38_genome_annotation.gtf.gz
 https://ftp.ncbi.nlm.nih.gov/genomes/all/annotation_releases/9606/109.20210514/GCF_000001405.39_GRCh38.p13/GCF_000001405.39_GRCh38.p13_genomic.fna.gz	GRCh38_genome_assembly.fna.gz
-https://jaspar.genereg.net/download/data/2022/CORE/JASPAR2022_CORE_non-redundant_pfms_meme.zip	JASPAR_2022_core.zip
+https://jaspar.genereg.net/download/data/2022/CORE.backup-20220211/JASPAR2022_CORE_non-redundant_pfms_meme.zip	JASPAR_2022_core.zip
 https://www.pnas.org/content/pnas/suppl/2015/10/23/1518552112.DCSupplemental/pnas.1518552112.sapp.pdf	Sanborn2015_suppl.pdf

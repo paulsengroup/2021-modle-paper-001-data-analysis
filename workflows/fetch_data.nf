@@ -2,9 +2,9 @@
 
 nextflow.enable.dsl=2
 
-
 // For some reason importing this function from utils.nfm causes an error like:
 //   Missing process or function with name 'normalize_path_name' -- Did you mean 'normalize_path_name' instead?
+
 // Remove problematic characters from file names.
 def normalize_path_name(old_path) {
    old_path.replaceAll(/[^A-Za-z0-9._-]/, '_')
@@ -61,7 +61,6 @@ process validate_files {
         '''
 }
 
-
 process rename_and_compress_files {
     publishDir "${params.output_dir}", mode: 'copy',
                                        saveAs: { fname ->
@@ -85,7 +84,12 @@ process rename_and_compress_files {
         of="${if%.ok}.new"
 
         # Rename files and compress them
-        if [[ $if == *.gz.ok || $if == *.hic.ok || $if == *.mcool.ok || $if == *.pdf.ok || $if == *.zip.ok ]]; then
+        if [[ $if == *.gz.ok    ||
+              $if == *.hic.ok   ||
+              $if == *.mcool.ok ||
+              $if == *.pdf.ok   ||
+              $if == *.zip.ok   ||
+              $if == *.bigWig.ok ]]; then
             cp "$if" "$of"
         else
             pigz -9c "$if" > "$of"
