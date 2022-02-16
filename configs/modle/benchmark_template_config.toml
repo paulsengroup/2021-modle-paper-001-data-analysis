@@ -2,7 +2,7 @@
 chrom-sizes="changeme"
 output-prefix="changeme"
 bin-size=5000
-target-contact-density=1
+target-contact-density=0.3
 lefs-per-mbp=20
 ncells=256
 extrusion-barrier-file="changeme"
