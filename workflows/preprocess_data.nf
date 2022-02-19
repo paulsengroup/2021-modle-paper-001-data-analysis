@@ -2,8 +2,6 @@
 
 nextflow.enable.dsl=2
 
-avail_cpus = Runtime.runtime.availableProcessors()
-
 workflow {
     grch37_bname = "${params.grch37_assembly_name_short}"
     grch38_bname = "${params.grch38_assembly_name_short}"
@@ -39,15 +37,17 @@ workflow {
     convert_mast_to_bed(run_mast.out.txt_gz,
                         grch38_chrom_sizes_bed)
 
-    generate_extr_barriers_bed("${grch38_bname}_${params.cell_line_name}",
+    generate_extr_barriers_bed(file(params.convert_chip_to_occupancy_script),
                                convert_mast_to_bed.out.bed_gz,
-                               file(params.hela_ctcf_chip),
-                               file(params.hela_rad21_chip))
+                               file(params.h1_rad21_chip_fold_change),
+                               file(params.h1_ctcf_chip_peaks),
+                               file(params.h1_rad21_chip_peaks),
+                               "${grch38_bname}_${params.cell_line_name}_barriers_RAD21_occupancy")
 
-    convert_hic_to_mcool(file(params.gm12878_sanborn2015_hic))
+    // convert_hic_to_mcool(file(params.gm12878_sanborn2015_hic))
 
-    rename_chromosomes_mcool(convert_hic_to_mcool.out.mcool)
-    balance_mcool(rename_chromosomes_mcool.out.mcool)
+    // rename_chromosomes_mcool(convert_hic_to_mcool.out.mcool)
+    // balance_mcool(rename_chromosomes_mcool.out.mcool)
 }
 
 process generate_chrom_sizes {
@@ -173,59 +173,32 @@ process extract_meme_motif_from_zip {
         '''
 }
 
-
 process generate_extr_barriers_bed {
     publishDir "${params.output_dir}", mode: 'copy'
 
     label 'process_short'
 
     input:
+        path main_script
+        path ctcf_motifs_bed
+        path rad21_fold_change_bwig
+        path ctcf_chip_peaks_bed
+        path rad21_chip_peaks_bed
         val bname
-        path ctcf_sites_bed
-        path ctcf_chip_peaks
-        path rad21_chip_peaks
 
     output:
-        path "${bname}_CTCF_sites_filtered.bed.gz", emit: bed_gz
+        path "${bname}.bed.gz", emit: bed_gz
 
     shell:
-        out = "${bname}_CTCF_sites_filtered.bed.gz"
-        """
-        set -e
-        set -u
-        set -o pipefail
-
-        mkfifo tmp1.fifo
-        mkfifo tmp2.fifo
-
-        # The following bedtools intersect commands output records from file -a whenever
-        # a record from -a overlaps with one or more records from b
-
-        # Intersect CTCF sites with CTCF ChIP peaks
-        bedtools intersect              \
-                 -wa                    \
-                 -u                     \
-                 -a "$ctcf_sites_bed"   \
-                 -b "$ctcf_chip_peaks" > tmp1.fifo &
-
-        # Intersect CTCF sites with RAD21 ChIP peaks
-        bedtools intersect              \
-                 -wa                    \
-                 -u                     \
-                 -a "$ctcf_sites_bed"   \
-                 -b "$rad21_chip_peaks" > tmp2.fifo &
-
-        # Equivalent of intersecting CTCF sites, CTCF ChIP peaks and RAD21 ChIP peaks
-        bedtools intersect        \
-                 -wa              \
-                 -u               \
-                 -a tmp1.fifo     \
-                 -b tmp2.fifo     |
-            sort -V -k 1,1 -k 2,2 |
-        gzip -9 > "$out"
-
-        rm -f tmp?.fifo
-        """
+        out="${bname}.bed.gz"
+        '''
+        python3 '!{main_script}' \
+                --chip-seq-bigwig '!{rad21_fold_change_bwig}'       \
+                --motifs-bed '!{ctcf_motifs_bed}'                   \
+                --regions-of-interest-bed '!{ctcf_chip_peaks_bed}'  \
+                                          '!{rad21_chip_peaks_bed}' |
+                gzip -9 > '!{bname}.bed.gz'
+        '''
 }
 
 process convert_hic_to_mcool {
