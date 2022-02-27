@@ -1,9 +1,0 @@
-[simulate]
-chrom-sizes="changeme"
-chrom-subranges="changeme"
-extrusion-barrier-file="changeme"
-output-prefix="changeme"
-bin-size=5000
-target-contact-density=2.0
-lefs-per-mbp=20
-randomize-contacts=true

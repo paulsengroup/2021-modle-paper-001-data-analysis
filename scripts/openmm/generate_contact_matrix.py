@@ -56,7 +56,7 @@ def matrix_to_df(matrix, bins, chrom_name, offset, bin_size):
     pixels = pd.DataFrame({"bin1_id": np.repeat(np.arange(num_bins), num_bins) + bin_offset,
                            "bin2_id": np.tile(np.arange(num_bins), num_bins) + bin_offset,
                            "count": matrix.flatten()})
-
+    pixels = pixels[pixels["count"] != 0]
     return pixels[pixels["bin1_id"] <= pixels["bin2_id"]].sort_values(["bin1_id", "bin2_id"])
 
 

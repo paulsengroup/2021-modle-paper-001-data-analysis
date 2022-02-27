@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 import argparse
 import csv
 import os
@@ -6,6 +8,7 @@ import shutil
 import sys
 import time
 import warnings
+from collections import namedtuple
 
 import numpy as np
 import pyximport
@@ -65,6 +68,9 @@ def make_cli():
                      type=float,
                      action=BoundCheckProbability,
                      default=0.0)
+    cli.add_argument("--barrier-occupancy",
+                     type=float,
+                     action=BoundCheckProbability)
     cli.add_argument("--pause-prob-passive-arm",
                      type=float,
                      action=BoundCheckProbability,
@@ -226,12 +232,12 @@ def initModel(barriers):
     stallDeathArray = np.zeros(N, dtype=np.double) + 1 / (LIFETIME / dt)
     smcNum = N // SEPARATION
 
-    for i, direction in barriers:
-        assert direction in ["-", "+"]
+    for idx, direction, occupancy in barriers:
         if direction == "+":
-            stallLeftArray[i] = stg
+            stallLeftArray[idx] = occupancy
         else:
-            stallRightArray[i] = stg
+            assert direction == "-"
+            stallRightArray[idx] = occupancy
 
     oneSidedArray = np.ones(smcNum, dtype=np.int64)
     for i in range(int((1. - FRACTION_ONESIDED) * smcNum)):
@@ -256,16 +262,29 @@ def initModel(barriers):
     return SMCTran
 
 
-def import_barriers(path_to_bed, monomer_size_bp):
+def import_barriers(path_to_bed, monomer_size_bp, default_barrier_occupancy):
     barriers = []
+    BarrierT = namedtuple("BarrierT", ["idx", "direction", "occupancy"])
     with open(path_to_bed, "r", newline="") as f:
         for row in csv.reader(f, delimiter="\t"):
             assert len(row) >= 6
-            pos = ((int(row[1]) + int(row[2])) // 2) // monomer_size_bp
+            idx = ((int(row[1]) + int(row[2])) // 2) // monomer_size_bp
             direction = row[5]
-            if pos < N and direction in ["-", "+"]:
-                barriers.append([pos, direction])
+            if default_barrier_occupancy is not None:
+                occupancy = default_barrier_occupancy
+            else:
+                occupancy = float(row[4])
+                assert 0.0 <= occupancy <= 1.0
 
+            if idx < N and direction in ["-", "+"]:
+                barriers.append(BarrierT(idx, direction, occupancy))
+
+    if os.path.isfile(path_to_bed) and os.path.getsize(path_to_bed) > 0 and len(barriers) == 0:
+        raise RuntimeError(
+            f"Unable to import any barrier from file {path_to_bed}. Is this intended?\n"
+            "If you really want to run a simulation without extrusion barriers, "
+            "you can do so by passing an empty file to --extrusion-barrier-bed")
+    print(f"Imported {len(barriers)} from file {path_to_bed}...")
     return barriers
 
 
@@ -283,8 +302,9 @@ if __name__ == "__main__":
 
     totalSavedBlocks = args.saved_simulation_blocks  # how many blocks to save (number of blocks done is totalSavedBlocks * saveEveryBlocks)
 
-    N = int((args.simulation_size_mbp * 1.0e6) + args.monomer_size_bp - 1) // args.monomer_size_bp  # number of monomers
-    barriers = import_barriers(args.extrusion_barrier_bed, args.monomer_size_bp)
+    N = int(
+        (args.simulation_size_mbp * 1.0e6) + args.monomer_size_bp - 1) // args.monomer_size_bp  # number of monomers
+    barriers = import_barriers(args.extrusion_barrier_bed, args.monomer_size_bp, args.barrier_occupancy)
 
     smcStepsPerBlock = 1  # I take something like 1/steppingprobability, because stepping is not determistic. I usually choose the probability of stepping to be max 0.1.
     stiff = 0  # Polymer siffness in unit of bead size
