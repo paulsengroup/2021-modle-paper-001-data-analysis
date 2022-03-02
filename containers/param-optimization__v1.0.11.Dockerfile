@@ -6,13 +6,12 @@ FROM ghcr.io/robomics/modle:sha-7080e51 AS base
 
 ARG CONTAINER_VERSION
 ARG BIOFRAME_VER='0.3.*'
-ARG PANDAS_VER='1.3.*'
+ARG PANDAS_VER='1.4.*'
 ARG PYBIGWIG_VER='0.3.*'
 ARG SKOPT_VER='0.9.*'
 ARG PIP_NO_CACHE_DIR=0
 
 ENV SHELL=/usr/bin/bash
-ENV PATH='/usr/local/bin:/usr/bin'
 
 LABEL maintainer='Roberto Rossini <roberros@uio.no>'
 LABEL version=${CONTAINER_VERSION}
@@ -33,15 +32,5 @@ RUN apt-get update \
     && apt-get remove -y gcc python3-dev python3-pip \
     && rm -rf /var/lib/apt/lists/*
 
-COPY scripts /tmp/scripts
-
-RUN install -d /usr/local/bin \
-    && install -D -m 755 /tmp/scripts/optimize_modle_sim_params.py /usr/local/bin/ \
-    && install -D -m 755 /tmp/scripts/optimize_extr_barriers_strengths.py /usr/local/bin/ \
-    && rm -r /tmp/scripts
-
-RUN optimize_modle_sim_params.py --help
 RUN modle --help
 RUN modle_tools --help
-
-ENTRYPOINT ["/usr/local/bin/optimize_modle_sim_params.py"]

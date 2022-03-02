@@ -79,7 +79,6 @@ def run_modle_sim(params):
            "-c", chrom_sizes,
            "--extrusion-barrier-file", extr_barriers,
            "-o", modle_out_prefix,
-           "--randomize-contacts",
            "--threads", str(nthreads),
            "--diagonal-width", str(diagonal_width)]
     if chrom_subranges is not None:

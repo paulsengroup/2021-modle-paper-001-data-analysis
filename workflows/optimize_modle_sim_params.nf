@@ -2,15 +2,12 @@
 
 nextflow.enable.dsl=2
 
-include { run_stripenn } from './modules/stripenn.nfm' addParams(stripenn_output_prefix: "${params.output_dir}/stripenn",
-                                                                 ncpus: params.ncpus)
-
 workflow {
     run_stripenn(file(params.reference_matrix_file),
                  params.bin_size,
                  "all")
 
-    generate_training_and_test_sites(run_stripenn.out.stripenn_filtered,
+    generate_training_and_test_sites(run_stripenn.out.filtered,
                                      params.seed,
                                      params.eval_sites_fraction_for_training)
 
@@ -21,7 +18,8 @@ workflow {
                                params.gaussian_sigma_multiplier_ref,
                                params.discretization_thresh_ref)
 
-    run_optimization(file(params.param_space_file),
+    run_optimization(file(params.optimize_modle_sim_script),
+                     file(params.param_space_file),
                      file(params.output_prefix),
                      file(params.chrom_sizes_file),
                      file(params.extr_barrier_file),
@@ -42,7 +40,8 @@ workflow {
                      params.seed,
                      params.scoring_method)
 
-    test_optimal_params(run_optimization.out.summary_tsv,
+    test_optimal_params(file(params.optimize_modle_sim_script),
+                        run_optimization.out.summary_tsv,
                         params.output_prefix,
                         file(params.chrom_sizes_file),
                         file(params.extr_barrier_file),
@@ -135,6 +134,7 @@ process run_optimization {
     label 'process_very_long'
 
     input:
+        path main_script
         path param_space_file
         val output_prefix
         path chrom_sizes
@@ -163,28 +163,28 @@ process run_optimization {
     shell:
         out="${output_prefix.fileName}"
         '''
-        optimize_modle_sim_params.py optimize \
-                                     --param-space-tsv="!{param_space_file}"                       \
-                                     --output-prefix="!{out}"                                      \
-                                     --chrom-sizes="!{chrom_sizes}"                                \
-                                     --extrusion-barriers="!{extrusion_barriers}"                  \
-                                     --evaluation-sites="!{evaluation_sites}"                      \
-                                     --transformed-reference-matrix="!{reference_matrix}"          \
-                                     --excluded-chroms="!{excluded_chroms}"                        \
-                                     --x0="!{starting_point}"                                      \
-                                     --gaussian-blur-sigma-ref="!{blur_sigma_ref}"                 \
-                                     --gaussian-blur-sigma-multiplier-ref="!{blur_sigma_mult_ref}" \
-                                     --discretization-thresh-ref="!{discret_thresh_ref}"           \
-                                     --gaussian-blur-sigma-tgt="!{blur_sigma_tgt}"                 \
-                                     --gaussian-blur-sigma-multiplier-tgt="!{blur_sigma_mult_tgt}" \
-                                     --discretization-thresh-tgt="!{discret_thresh_tgt}"           \
-                                     --diagonal-width="!{diagonal_width}"                          \
-                                     --ncalls="!{ncalls}"                                          \
-                                     --nrandom-starts="!{num_random_starts}"                       \
-                                     --optimization-method="!{optimization_method}"                \
-                                     --seed="!{seed}"                                              \
-                                     --nthreads=!{task.cpus}                                       \
-                                     --modle-tools-eval-metric="!{scoring_method}"
+        ./'!{main_script}' optimize \
+             --param-space-tsv="!{param_space_file}"                       \
+             --output-prefix="!{out}"                                      \
+             --chrom-sizes="!{chrom_sizes}"                                \
+             --extrusion-barriers="!{extrusion_barriers}"                  \
+             --evaluation-sites="!{evaluation_sites}"                      \
+             --transformed-reference-matrix="!{reference_matrix}"          \
+             --excluded-chroms="!{excluded_chroms}"                        \
+             --x0="!{starting_point}"                                      \
+             --gaussian-blur-sigma-ref="!{blur_sigma_ref}"                 \
+             --gaussian-blur-sigma-multiplier-ref="!{blur_sigma_mult_ref}" \
+             --discretization-thresh-ref="!{discret_thresh_ref}"           \
+             --gaussian-blur-sigma-tgt="!{blur_sigma_tgt}"                 \
+             --gaussian-blur-sigma-multiplier-tgt="!{blur_sigma_mult_tgt}" \
+             --discretization-thresh-tgt="!{discret_thresh_tgt}"           \
+             --diagonal-width="!{diagonal_width}"                          \
+             --ncalls="!{ncalls}"                                          \
+             --nrandom-starts="!{num_random_starts}"                       \
+             --optimization-method="!{optimization_method}"                \
+             --seed="!{seed}"                                              \
+             --nthreads=!{task.cpus}                                       \
+             --modle-tools-eval-metric="!{scoring_method}"
         '''
 }
 
@@ -194,6 +194,7 @@ process test_optimal_params {
     label 'process_high'
 
     input:
+        path main_script
         path optimization_result
         val output_prefix
         path chrom_sizes
@@ -218,23 +219,63 @@ process test_optimal_params {
 
     shell:
         '''
-        optimize_modle_sim_params.py test \
-                                     --optimization-result-tsv="!{optimization_result}"            \
-                                     --num-params-to-test=!{num_params_to_test}                    \
-                                     --output-prefix="!{output_prefix}"                            \
-                                     --chrom-sizes="!{chrom_sizes}"                                \
-                                     --extrusion-barriers="!{extrusion_barriers}"                  \
-                                     --evaluation-sites="!{evaluation_sites}"                      \
-                                     --transformed-reference-matrix="!{reference_matrix}"                      \
-                                     --excluded-chroms="!{excluded_chroms}"                        \
-                                     --gaussian-blur-sigma-ref="!{blur_sigma_ref}"                 \
-                                     --gaussian-blur-sigma-multiplier-ref="!{blur_sigma_mult_ref}" \
-                                     --discretization-thresh-ref="!{discret_thresh_ref}"           \
-                                     --gaussian-blur-sigma-tgt="!{blur_sigma_tgt}"                 \
-                                     --gaussian-blur-sigma-multiplier-tgt="!{blur_sigma_mult_tgt}" \
-                                     --discretization-thresh-tgt="!{discret_thresh_tgt}"           \
-                                     --diagonal-width="!{diagonal_width}"                          \
-                                     --nthreads=!{task.cpus}                                       \
-                                     --modle-tools-eval-metric="!{scoring_method}"
+        ./'!{main_script}' test \
+             --optimization-result-tsv="!{optimization_result}"            \
+             --num-params-to-test=!{num_params_to_test}                    \
+             --output-prefix="!{output_prefix}"                            \
+             --chrom-sizes="!{chrom_sizes}"                                \
+             --extrusion-barriers="!{extrusion_barriers}"                  \
+             --evaluation-sites="!{evaluation_sites}"                      \
+             --transformed-reference-matrix="!{reference_matrix}"                      \
+             --excluded-chroms="!{excluded_chroms}"                        \
+             --gaussian-blur-sigma-ref="!{blur_sigma_ref}"                 \
+             --gaussian-blur-sigma-multiplier-ref="!{blur_sigma_mult_ref}" \
+             --discretization-thresh-ref="!{discret_thresh_ref}"           \
+             --gaussian-blur-sigma-tgt="!{blur_sigma_tgt}"                 \
+             --gaussian-blur-sigma-multiplier-tgt="!{blur_sigma_mult_tgt}" \
+             --discretization-thresh-tgt="!{discret_thresh_tgt}"           \
+             --diagonal-width="!{diagonal_width}"                          \
+             --nthreads=!{task.cpus}                                       \
+             --modle-tools-eval-metric="!{scoring_method}"
+        '''
+}
+
+process run_stripenn {
+    publishDir "${params.output_dir}/stripenn", mode: 'copy'
+
+    label 'process_medium'
+    label 'process_very_long'
+
+    input:
+        path cool
+        val resolution
+        val chroms
+
+    output:
+        path "*_filtered.tsv", emit: filtered
+        path "*_unfiltered.tsv", emit: unfiltered
+        path "*_stripenn.log", emit: log
+
+    shell:
+        '''
+        input_name="!{cool}"
+        if [[ $input_name == *.mcool ]]; then
+            input_name="${input_name}::/resolutions/!{resolution}"
+        fi
+
+        # Apparently --norm and --chrom are required in order to get stripenn
+        # to work reliably
+        stripenn compute --cool "$input_name"   \
+                         --out tmpout/          \
+                         --chrom "!{chroms}"    \
+                         --norm weight          \
+                         --numcores !{task.cpus}
+
+        out_prefix="$(basename "!{cool}")"
+        out_prefix="${out_prefix%.*}"
+
+        mv tmpout/result_filtered.tsv "${out_prefix}_filtered.tsv"
+        mv tmpout/result_unfiltered.tsv "${out_prefix}_unfiltered.tsv"
+        mv tmpout/stripenn.log "${out_prefix}_stripenn.log"
         '''
 }
