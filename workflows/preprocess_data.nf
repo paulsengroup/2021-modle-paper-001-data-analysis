@@ -43,11 +43,6 @@ workflow {
                                file(params.h1_ctcf_chip_peaks),
                                file(params.h1_rad21_chip_peaks),
                                "${grch38_bname}_${params.cell_line_name}_barriers_RAD21_occupancy")
-
-    // convert_hic_to_mcool(file(params.gm12878_sanborn2015_hic))
-
-    // rename_chromosomes_mcool(convert_hic_to_mcool.out.mcool)
-    // balance_mcool(rename_chromosomes_mcool.out.mcool)
 }
 
 process generate_chrom_sizes {
