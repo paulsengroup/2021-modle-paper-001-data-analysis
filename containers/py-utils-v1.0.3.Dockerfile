@@ -23,5 +23,5 @@ RUN pip install --no-cache-dir        \
         natsort                       \
         numpy=="$NUMPY_VER"           \
         pandas=="$PANDAS_VER"         \
-        Pillow=="$PILLOW_VER"          \
+        Pillow=="$PILLOW_VER"         \
         pyBigWig=="$BIOFRAME_VER"
