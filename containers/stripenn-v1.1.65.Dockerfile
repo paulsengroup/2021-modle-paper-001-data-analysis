@@ -19,7 +19,7 @@ RUN dnf update -y \
     && pip install psutil                                                        \
     && dnf remove -y gcc python3-devel python3-pip python3-setuptools zlib-devel \
     && dnf clean all
-     
+
 ENV SHELL=/usr/bin/bash
 
 LABEL maintainer='Roberto Rossini <roberros@uio.no>'
