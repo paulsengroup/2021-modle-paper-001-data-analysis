@@ -30,7 +30,7 @@ RUN apt-get update \
 FROM ubuntu:20.04 AS builder
 
 ARG HOOMD_VERSION=1.3.4
-ARG CONTAINER_VERSION=1.3.4-patched
+ARG CONTAINER_VERSION
 
 ENV SHELL=/bin/bash
 

@@ -4,7 +4,7 @@
 
 FROM fedora:34 AS base
 
-ARG CONTAINER_VERSION=0.5.0
+ARG CONTAINER_VERSION
 ARG COOLTOOLS_VER=${CONTAINER_VERSION}
 ARG PIP_NO_CACHE_DIR=0
 
@@ -18,7 +18,7 @@ RUN dnf update -y \
     && dnf remove -y gcc python3-devel python3-Cython python3-pip   \
                      python3-wheel zlib-devel                       \
     && dnf clean all
-     
+
 ENV SHELL=/usr/bin/bash
 ENV PATH='/usr/local/bin:/usr/bin'
 

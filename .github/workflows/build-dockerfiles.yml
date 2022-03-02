@@ -7,12 +7,12 @@ on:
   push:
     branches: [ main ]
     paths:
-      - ".github/workflows/*.yml"
+      - ".github/workflows/build-dockerfiles.yml"
       - "containers/*.Dockerfile"
   pull_request:
     branches: [ main ]
     paths:
-      - ".github/workflows/*.yml"
+      - ".github/workflows/build-dockerfiles.yml"
       - "containers/*.Dockerfile"
 
 jobs:
@@ -66,9 +66,9 @@ jobs:
         if: ${{ steps.process-changed-files.outputs.run == 'true' }}
         working-directory: ${{ github.workspace }}/containers
         run: |
-          ls ${{ matrix.image-name }}-v*.Dockerfile
-          ver="$(grep -E 'ARG CONTAINER_VERSION=[[:alnum:].-]+$' ${{ matrix.image-name }}-v*.Dockerfile |
-                 head -n 1 | grep -oE '[[:alnum:].-]+$')"
+          ls ${{ matrix.image-name }}*.Dockerfile
+
+          ver="$(ls ${{ matrix.image-name }}*.Dockerfile | sed 's|.*__v\(.*\)\.Dockerfile|\1|')"
 
           echo "${{ matrix.image-name }} version: $ver"
           echo "::set-output name=ver::$ver"
@@ -81,14 +81,6 @@ jobs:
 
           echo "Tags: $tags"
           echo "::set-output name=tags::$tags"
-
-
-      # - name: Login to DockerHub
-      #   if: ${{ github.event_name != 'pull_request' && steps.process-changed-files.outputs.run == 'true' }}
-      #   uses: docker/login-action@v1
-      #   with:
-      #     username: ${{ secrets.DOCKERHUB_USERNAME }}
-      #     password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Login to GitHub Container Registry
         if: ${{ github.event_name != 'pull_request' && steps.process-changed-files.outputs.run == 'true' }}
@@ -112,4 +104,5 @@ jobs:
           cache-to: type=gha,mode=max
           tags: ${{ steps.image-version.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          file: containers/${{ matrix.image-name }}-v${{ steps.image-version.outputs.ver }}.Dockerfile
+          file: containers/${{ matrix.image-name }}__v${{ steps.image-version.outputs.ver }}.Dockerfile
+          build-args: CONTAINER_VERSION=${{ steps.image-version.outputs.ver }}

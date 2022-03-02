@@ -54,7 +54,7 @@ RUN micromamba install -y \
 
 ENV PATH="/opt/conda/bin:$PATH"
 
-ARG CONTAINER_VERSION=1.0.0
+ARG CONTAINER_VERSION
 LABEL maintainer='Roberto Rossini <roberros@uio.no>'
 LABEL version=${CONTAINER_VERSION}
 WORKDIR /data

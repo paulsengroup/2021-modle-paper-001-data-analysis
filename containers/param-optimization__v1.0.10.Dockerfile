@@ -2,9 +2,9 @@
 #
 # SPDX-License-Identifier: MIT
 
-FROM ghcr.io/robomics/modle:sha-527e192 AS base
+FROM ghcr.io/robomics/modle:sha-7080e51 AS base
 
-ARG CONTAINER_VERSION=1.0.9
+ARG CONTAINER_VERSION
 ARG BIOFRAME_VER='0.3.*'
 ARG PANDAS_VER='1.3.*'
 ARG PYBIGWIG_VER='0.3.*'

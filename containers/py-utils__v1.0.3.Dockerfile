@@ -4,7 +4,7 @@
 
 FROM python:3.10-bullseye AS base
 
-ARG CONTAINER_VERSION=1.0.3
+ARG CONTAINER_VERSION
 LABEL maintainer='Roberto Rossini <roberros@uio.no>'
 LABEL version=${CONTAINER_VERSION}
 

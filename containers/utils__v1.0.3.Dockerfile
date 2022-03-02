@@ -5,7 +5,7 @@
 FROM fedora:35 AS base
 
 
-ARG CONTAINER_VERSION=1.0.3
+ARG CONTAINER_VERSION
 
 RUN dnf update -y \
     && dnf install -y --setopt=install_weak_deps=False --best \

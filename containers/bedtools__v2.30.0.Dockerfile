@@ -5,7 +5,7 @@
 FROM fedora:35 AS builder
 
 
-ARG CONTAINER_VERSION=2.30.0
+ARG CONTAINER_VERSION
 ARG BEDTOOLS_VER=${CONTAINER_VERSION}
 ARG BEDTOOLS_URL="https://github.com/arq5x/bedtools2/releases/download/v$BEDTOOLS_VER/bedtools-$BEDTOOLS_VER.tar.gz"
 
@@ -29,7 +29,7 @@ RUN dnf update -y \
      && dnf install -y --setopt=install_weak_deps=False --best        \
      xz bzip2 zlib && dnf clean all
 
-RUN chown -R root:root /usr/local/share/licenses/  
+RUN chown -R root:root /usr/local/share/licenses/
 
 ENV SHELL=/usr/bin/bash
 ENV PATH='/usr/local/bin:/usr/bin'

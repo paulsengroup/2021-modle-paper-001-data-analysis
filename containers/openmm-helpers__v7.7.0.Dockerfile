@@ -87,7 +87,7 @@ ENV PATH="/opt/conda/bin:$PATH"
 ENV CC=/opt/conda/bin/gcc
 ENV CXX=/opt/conda/bin/g++
 
-ARG CONTAINER_VERSION=7.7.0
+ARG CONTAINER_VERSION
 LABEL maintainer='Roberto Rossini <roberros@uio.no>'
 LABEL version=${CONTAINER_VERSION}
 WORKDIR /data

@@ -4,7 +4,7 @@
 
 FROM glotzerlab/software:2022.01.12-nompi AS base
 
-ARG CONTAINER_VERSION=1.0.3
+ARG CONTAINER_VERSION
 LABEL hoomd_version=2.9.7
 LABEL maintainer='Roberto Rossini <roberros@uio.no>'
 LABEL version=${CONTAINER_VERSION}
