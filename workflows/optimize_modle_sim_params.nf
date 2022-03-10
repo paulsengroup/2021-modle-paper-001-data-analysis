@@ -57,6 +57,8 @@ workflow {
                         params.diagonal_width,
                         params.scoring_method,
                         params.num_params_to_test)
+
+    cooler_zoomify(test_optimal_params.out.cool.flatten())
 }
 
 process generate_training_and_test_sites {
@@ -277,5 +279,22 @@ process run_stripenn {
         mv tmpout/result_filtered.tsv "${out_prefix}_filtered.tsv"
         mv tmpout/result_unfiltered.tsv "${out_prefix}_unfiltered.tsv"
         mv tmpout/stripenn.log "${out_prefix}_stripenn.log"
+        '''
+}
+
+process cooler_zoomify {
+    publishDir "${params.output_dir}/mcools", mode: 'copy'
+
+    input:
+        path cool
+
+    output:
+        path "*.mcool", emit: mcool
+
+    shell:
+        '''
+        cooler zoomify -r 5000N        \
+                       -p !{task.cpus} \
+                       '!{cool}'
         '''
 }

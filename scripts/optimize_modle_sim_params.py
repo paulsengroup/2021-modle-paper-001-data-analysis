@@ -27,31 +27,41 @@ def try_convert_to_numeric(x):
     except Exception:
         return x
 
+def stripe_is_vertical(s1, e1, s2, e2):
+    return ((s1 + e1) / 2) >= ((s2 + e2) / 2)
 
-def eval(bed_file, bwig1, bwig2):
-    cols = ["chrom", "start", "end"]
+def stripe_is_horizontal(s1, e1, s2, e2):
+    return not stripe_is_vertical(s1, e1, s2, e2)
+
+def eval(bed_file, horizontal_bwig, vertical_bwig):
+    cols = ["chrom1", "start1", "end1",
+            "chrom2", "start2", "end2"]
     bed = bf.read_table(bed_file,
                         header=0,
                         names=cols,
-                        usecols=list(range(3))).drop_duplicates(ignore_index=True)
-    bed = bed[~bed["chrom"].isin(excluded_chroms)]
+                        usecols=list(range(len(cols)))).drop_duplicates(ignore_index=True)
+    bed = bed[~bed["chrom1"].isin(excluded_chroms)]
 
     if chrom_subranges is not None:
         intervals = bf.read_table(chrom_subranges,
                                   header=None,
-                                  names=cols,
+                                  names=cols[0:3],
                                   usecols=list(range(3))).drop_duplicates(ignore_index=True)
 
         bed = bf.overlap(bed, intervals, how="left").dropna()[cols]
 
-    scores = np.empty(bed.shape[0] * 2, dtype=float)
-    with pyBigWig.open(bwig1) as bw1, pyBigWig.open(bwig2) as bw2:
+    scores = []
+    with pyBigWig.open(horizontal_bwig) as h_bw, pyBigWig.open(vertical_bwig) as v_bw:
         # Fill scores vector
-        for (i, (chrom, start, end)) in bed.iterrows():
-            scores[i] = bw1.stats(chrom, int(start), int(end))[0]
-            scores[bed.shape[0] + i] = bw2.stats(chrom, int(start), int(end))[0]
+        print(bed.columns)
+        for (_, (chrom, start1, end1, _, start2, end2)) in bed.iterrows():
+            if stripe_is_vertical(start1, end1, start2, end2):
+                scores.append(v_bw.stats(chrom, int(start1), int(end1))[0])
+            else:
+                scores.append(h_bw.stats(chrom, int(start1), int(end1))[0])
 
     # Drop nan and inf values
+    scores = np.array(scores, dtype=float)
     scores = scores[(~np.isnan(scores)) & (~np.isinf(scores))]
 
     if len(scores) == 0:
@@ -308,7 +318,6 @@ def run_optimize():
     ncalls = args.ncalls
     nrandom_starts = args.nrandom_starts
 
-    optimizer = None
     if method == "dummy":
         optimizer = dummy_minimize
     elif method == "forest":
