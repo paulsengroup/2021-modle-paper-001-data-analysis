@@ -4,10 +4,13 @@
 
 FROM ubuntu:20.04 AS patch-hoomd
 
+ARG CONTAINER_VERSION
 ARG HOOMD_VERSION=1.3.4
 
 ARG HOOMD_SOURCE_URL="https://github.com/glotzerlab/hoomd-blue/archive/refs/tags/v${HOOMD_VERSION}.tar.gz"
 ARG HOOMD_SOURCE_SHA256='e4b13310ad9c60813f0fc3d3cb887b8a60092161c94f9b3fd7471b88c4ce0be8'
+
+RUN if [ -z "$CONTAINER_VERSION" ]; then echo "Missing CONTAINER_VERSION --build-arg" && exit 1; fi
 
 # Download and patch hoomd
 RUN apt-get update \

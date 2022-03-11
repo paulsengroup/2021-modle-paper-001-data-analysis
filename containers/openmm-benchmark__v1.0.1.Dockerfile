@@ -7,6 +7,8 @@ FROM ghcr.io/paulsengroup/2021-modle-paper-001-data-analysis/openmm-helpers:7.7.
 ARG CONTAINER_VERSION
 ARG CONTAINER_TITLE
 
+RUN if [ -z "$CONTAINER_VERSION" ]; then echo "Missing CONTAINER_VERSION --build-arg" && exit 1; fi
+
 WORKDIR /data
 
 USER root

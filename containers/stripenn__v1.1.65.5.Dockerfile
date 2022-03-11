@@ -11,6 +11,8 @@ ARG STRIPENN_VER=${CONTAINER_VERSION}
 ARG MAMBA_DOCKERFILE_ACTIVATE=1
 ARG PIP_NO_CACHE_DIR=0
 
+RUN if [ -z "$CONTAINER_VERSION" ]; then echo "Missing CONTAINER_VERSION --build-arg" && exit 1; fi
+
 RUN micromamba install -y \
     -c conda-forge \
     -c fastai \

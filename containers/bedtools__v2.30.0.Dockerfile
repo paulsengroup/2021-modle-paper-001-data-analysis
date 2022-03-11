@@ -8,6 +8,8 @@ ARG CONTAINER_VERSION
 ARG BEDTOOLS_VER=${CONTAINER_VERSION}
 ARG BEDTOOLS_URL="https://github.com/arq5x/bedtools2/releases/download/v$BEDTOOLS_VER/bedtools-$BEDTOOLS_VER.tar.gz"
 
+RUN if [ -z "$CONTAINER_VERSION" ]; then echo "Missing CONTAINER_VERSION --build-arg" && exit 1; fi
+
 RUN apt-get update \
 &&  apt-get install -y curl \
                        diffutils \

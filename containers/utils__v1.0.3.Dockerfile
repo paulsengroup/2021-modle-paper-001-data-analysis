@@ -8,6 +8,8 @@ FROM fedora:35 AS base
 ARG CONTAINER_VERSION
 ARG CONTAINER_TITLE
 
+RUN if [ -z "$CONTAINER_VERSION" ]; then echo "Missing CONTAINER_VERSION --build-arg" && exit 1; fi
+
 RUN dnf update -y \
 &&  dnf install -y findutils \
                    gawk \

@@ -4,8 +4,11 @@
 
 FROM ubuntu:20.04 as downloader
 
+ARG CONTAINER_VERSION
 ARG GET_QC_URL='https://raw.githubusercontent.com/dovetail-genomics/Micro-C/85d5d4aaf830b076658205f11a9413b24434789a/get_qc.py'
 ARG GET_QC_SHA256='37b34225118c8c46a5abe05dfa79a304a637ffe1a393d9dc200621b0090c7da5'
+
+RUN if [ -z "$CONTAINER_VERSION" ]; then echo "Missing CONTAINER_VERSION --build-arg" && exit 1; fi
 
 RUN apt-get update \
 && apt-get install -y --no-install-recommends ca-certificates curl perl \

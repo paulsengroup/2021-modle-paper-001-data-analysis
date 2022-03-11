@@ -16,6 +16,8 @@ ARG PILLOW_VER='9.0.*'
 ARG PYBIGWIG_VER='0.3.18'
 ARG SCIPY_VER='1.8.*'
 
+RUN if [ -z "$CONTAINER_VERSION" ]; then echo "Missing CONTAINER_VERSION --build-arg" && exit 1; fi
+
 RUN pip install --no-cache-dir        \
         bioframe=="$BIOFRAME_VER"     \
         cooler=="$COOLER_VER"         \

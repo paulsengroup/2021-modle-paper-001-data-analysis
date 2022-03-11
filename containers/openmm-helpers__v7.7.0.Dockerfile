@@ -9,11 +9,12 @@ ARG OPENMM_VERSION=${CONTAINER_VERSION}
 ARG CUDA_VERSION=11.1
 ARG PYTHON_VERSION=3.9
 
-
 ARG MAMBA_DOCKERFILE_ACTIVATE=1
 ARG PIP_NO_CACHE_DIR=0
 
 ENV SHELL=/bin/bash
+
+RUN if [ -z "$CONTAINER_VERSION" ]; then echo "Missing CONTAINER_VERSION --build-arg" && exit 1; fi
 
 RUN micromamba install -y \
     -c conda-forge \

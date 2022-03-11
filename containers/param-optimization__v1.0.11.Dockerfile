@@ -16,6 +16,8 @@ ARG PIP_NO_CACHE_DIR=0
 
 ENV SHELL=/usr/bin/bash
 
+RUN if [ -z "$CONTAINER_VERSION" ]; then echo "Missing CONTAINER_VERSION --build-arg" && exit 1; fi
+
 RUN apt-get update \
     && apt-get install -y          \
                        bash        \

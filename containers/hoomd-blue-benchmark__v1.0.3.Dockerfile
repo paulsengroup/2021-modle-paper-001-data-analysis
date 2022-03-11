@@ -7,6 +7,8 @@ FROM glotzerlab/software:2022.01.12-nompi AS base
 ARG CONTAINER_VERSION
 ARG CONTAINER_TITLE
 
+RUN if [ -z "$CONTAINER_VERSION" ]; then echo "Missing CONTAINER_VERSION --build-arg" && exit 1; fi
+
 USER root
 RUN apt-get update \
     && apt-get install -y --no-install-recommends time \

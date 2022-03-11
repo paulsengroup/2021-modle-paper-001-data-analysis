@@ -7,6 +7,8 @@ FROM ghcr.io/paulsengroup/modle:1.0.0-rc.1 AS base
 ARG CONTAINER_VERSION
 ARG CONTAINER_TITLE
 
+RUN if [ -z "$CONTAINER_VERSION" ]; then echo "Missing CONTAINER_VERSION --build-arg" && exit 1; fi
+
 WORKDIR /data
 
 RUN apt-get update \

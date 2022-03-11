@@ -11,6 +11,8 @@ ARG CONTAINER_TITLE
 ARG COOLTOOLS_VER=${CONTAINER_VERSION}
 ARG PIP_NO_CACHE_DIR=0
 
+RUN if [ -z "$CONTAINER_VERSION" ]; then echo "Missing CONTAINER_VERSION --build-arg" && exit 1; fi
+
 RUN micromamba install -y \
         -c conda-forge \
         -c bioconda \
