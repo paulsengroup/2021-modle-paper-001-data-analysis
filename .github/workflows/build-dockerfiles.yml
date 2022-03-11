@@ -106,5 +106,5 @@ jobs:
           tags: ${{ steps.generate-tags.outputs.tags }}
           file: ${{ steps.process-changed-files.outputs.dockerfile }}
           build-args: |
-            CONTAINER_VERSION=${{ steps.image-version.outputs.version }}
-            CONTAINER_TITLE=${{ steps.image-version.outputs.name }}
+            CONTAINER_VERSION=${{ steps.process-changed-files.outputs.version }}
+            CONTAINER_TITLE=${{ steps.process-changed-files.outputs.name }}
