@@ -5,22 +5,36 @@ set -u
 set -o pipefail
 set -x
 
-nextflow run -c configs/fetch_data.config \
-    -c configs/base.config \
-    workflows/fetch_data.nf \
-    -resume
 
-nextflow run -c configs/preprocess_data.config \
-    -c configs/base.config \
-    workflows/preprocess_data.nf \
-    -resume
+function run_workflow() {
+    name="$1"
+    if [[ $HOSTNAME == *.saga ]]; then
+        base_config='configs/base_saga.config'
+        args=("${@:2}"
+              --max_memory=3000.G
+              --max_cpus=64
+              --max_time=336.h
+              --project="${SLURM_PROJECT_ID-changeme}")
+    else
+        base_config='configs/base_hovig.config'
+        args=("${@:2}")
+    fi
 
-nextflow run -c configs/optimize_modle_sim_params.config \
-    -c configs/base.config \
-    workflows/optimize_modle_sim_params.nf \
-    -resume
+    nextflow run \
+        "${args[@]}" \
+        -c "configs/$name.config" \
+        -c "$base_config" \
+        "workflows/$name.nf" \
+        -resume
+}
 
-nextflow run -c configs/genome_wide_analyses.config \
-    -c configs/base.config \
-    workflows/genome_wide_analyses.nf \
-    -resume
+
+steps=(fetch_data
+       preprocess_data
+       optimize_modle_sim_params
+#       genome_wide_analyses
+)
+
+for step in "${steps[@]}"; do
+    run_workflow "$step"
+done
