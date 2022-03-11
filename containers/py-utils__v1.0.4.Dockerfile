@@ -15,6 +15,7 @@ ARG NUMPY_VER='1.22.*'
 ARG PANDAS_VER='1.3.*'
 ARG PILLOW_VER='9.0.*'
 ARG PYBIGWIG_VER='0.3.18'
+ARG SCIPY_VER='1.8.*'
 
 RUN pip install --no-cache-dir        \
         bioframe=="$BIOFRAME_VER"     \
@@ -24,4 +25,5 @@ RUN pip install --no-cache-dir        \
         numpy=="$NUMPY_VER"           \
         pandas=="$PANDAS_VER"         \
         Pillow=="$PILLOW_VER"         \
-        pyBigWig=="$BIOFRAME_VER"
+        pyBigWig=="$BIOFRAME_VER"     \
+        scipy=="$SCIPY_VER"

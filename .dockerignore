@@ -5,6 +5,9 @@
 # Ignore everything
 **
 
-# Allowed files and directory
+# Allowed files and directories
 !scripts/**
+
+# Excluded files and directories
+scripts/scratch/**
 
