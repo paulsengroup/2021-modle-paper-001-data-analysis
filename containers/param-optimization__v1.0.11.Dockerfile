@@ -2,24 +2,22 @@
 #
 # SPDX-License-Identifier: MIT
 
-FROM ghcr.io/robomics/modle:sha-7080e51 AS base
+FROM ghcr.io/paulsengroup/modle:1.0.0-rc.1 AS base
 
 ARG CONTAINER_VERSION
+ARG CONTAINER_TITLE
+
 ARG BIOFRAME_VER='0.3.*'
 ARG PANDAS_VER='1.4.*'
 ARG PYBIGWIG_VER='0.3.*'
 ARG SKOPT_VER='0.9.*'
+ARG SCIPY_VER='1.8.*'
 ARG PIP_NO_CACHE_DIR=0
 
 ENV SHELL=/usr/bin/bash
 
-LABEL maintainer='Roberto Rossini <roberros@uio.no>'
-LABEL version=${CONTAINER_VERSION}
-WORKDIR /data
-
-# Update system repo and install required tools
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends  \
+    && apt-get install -y          \
                        bash        \
                        gcc         \
                        python3     \
@@ -29,8 +27,21 @@ RUN apt-get update \
                    pandas==${PANDAS_VER}             \
                    pyBigWig==${PYBIGWIG_VER}         \
                    scikit-optimize==${SKOPT_VER}     \
+                   scipy==${SCIPY_VER}               \
     && apt-get remove -y gcc python3-dev python3-pip \
+    && apt-get autoremove -y \
     && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /data
+ENTRYPOINT ["/usr/bin/python3"]
 
 RUN modle --help
 RUN modle_tools --help
+
+LABEL org.opencontainers.image.authors='Roberto Rossini <roberros@uio.no>'
+LABEL org.opencontainers.image.url='https://github.com/paulsengroup/2021-modle-paper-001-data-analysis'
+LABEL org.opencontainers.image.documentation='https://github.com/2021-modle-paper-001-data-analysis'
+LABEL org.opencontainers.image.source='https://github.com/paulsengroup/2021-modle-paper-001-data-analysis'
+LABEL org.opencontainers.image.licenses='MIT'
+LABEL org.opencontainers.image.title="${CONTAINER_TITLE:-param-optimization}"
+LABEL org.opencontainers.image.version="${CONTAINER_VERSION:-latest}"

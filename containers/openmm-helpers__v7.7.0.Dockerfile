@@ -2,9 +2,10 @@
 #
 # SPDX-License-Identifier: MIT
 
-FROM mambaorg/micromamba:0.20.0 AS base
+FROM mambaorg/micromamba:0.22.0 AS base
 
-ARG OPENMM_VERSION=7.7.0
+ARG CONTAINER_VERSION
+ARG OPENMM_VERSION=${CONTAINER_VERSION}
 ARG CUDA_VERSION=11.1
 ARG PYTHON_VERSION=3.9
 
@@ -88,6 +89,13 @@ ENV CC=/opt/conda/bin/gcc
 ENV CXX=/opt/conda/bin/g++
 
 ARG CONTAINER_VERSION
-LABEL maintainer='Roberto Rossini <roberros@uio.no>'
-LABEL version=${CONTAINER_VERSION}
+ARG CONTAINER_TITLE
 WORKDIR /data
+
+LABEL org.opencontainers.image.authors='Roberto Rossini <roberros@uio.no>'
+LABEL org.opencontainers.image.url='https://github.com/paulsengroup/2021-modle-paper-001-data-analysis'
+LABEL org.opencontainers.image.documentation='https://github.com/2021-modle-paper-001-data-analysis'
+LABEL org.opencontainers.image.source='https://github.com/paulsengroup/2021-modle-paper-001-data-analysis'
+LABEL org.opencontainers.image.licenses='MIT'
+LABEL org.opencontainers.image.title="${CONTAINER_TITLE:-openmm-helpers}"
+LABEL org.opencontainers.image.version="${CONTAINER_VERSION:-latest}"

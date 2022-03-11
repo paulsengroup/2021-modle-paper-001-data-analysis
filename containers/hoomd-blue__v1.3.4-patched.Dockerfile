@@ -31,11 +31,9 @@ FROM ubuntu:20.04 AS builder
 
 ARG HOOMD_VERSION=1.3.4
 ARG CONTAINER_VERSION
+ARG CONTAINER_TITLE
 
 ENV SHELL=/bin/bash
-
-LABEL maintainer='Roberto Rossini <roberros@uio.no>'
-LABEL version=${CONTAINER_VERSION}
 WORKDIR /data
 
 ARG DEBIAN_FRONTEND=noninteractive
@@ -111,3 +109,11 @@ RUN apt-get update \
 RUN which hoomd
 
 ENTRYPOINT ["/usr/local/bin/hoomd"]
+
+LABEL org.opencontainers.image.authors='Roberto Rossini <roberros@uio.no>'
+LABEL org.opencontainers.image.url='https://github.com/paulsengroup/2021-modle-paper-001-data-analysis'
+LABEL org.opencontainers.image.documentation='https://github.com/2021-modle-paper-001-data-analysis'
+LABEL org.opencontainers.image.source='https://github.com/paulsengroup/2021-modle-paper-001-data-analysis'
+LABEL org.opencontainers.image.licenses='MIT'
+LABEL org.opencontainers.image.title="${CONTAINER_TITLE:-hoomd-blue}"
+LABEL org.opencontainers.image.version="${CONTAINER_VERSION:-latest}"

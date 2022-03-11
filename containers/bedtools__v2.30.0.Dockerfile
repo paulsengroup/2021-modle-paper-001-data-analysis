@@ -2,41 +2,55 @@
 #
 # SPDX-License-Identifier: MIT
 
-FROM fedora:35 AS builder
-
+FROM ubuntu:20.04 AS builder
 
 ARG CONTAINER_VERSION
 ARG BEDTOOLS_VER=${CONTAINER_VERSION}
 ARG BEDTOOLS_URL="https://github.com/arq5x/bedtools2/releases/download/v$BEDTOOLS_VER/bedtools-$BEDTOOLS_VER.tar.gz"
 
-# Update system repo and install required tools
-RUN dnf update -y \
-    && dnf install -y --setopt=install_weak_deps=False --best        \
-    diffutils gcc-c++ make python xz bzip2-devel xz-devel zlib-devel
+RUN apt-get update \
+&&  apt-get install -y curl \
+                       diffutils \
+                       g++ \
+                       make \
+                       python2 \
+                       libbz2-dev \
+                       liblzma-dev \
+                       zlib1g-dev
 
 RUN cd /tmp && curl -L "$BEDTOOLS_URL" | tar -xzf -
 
-RUN cd "/tmp/bedtools2"  \
-    && make -j $(nproc)  \
-    && make test 2>&1 | grep -q 'Tools failing:  negativecontrol'
+RUN mkdir -p /tmp/bin \
+&&  ln -s /usr/bin/python2 /tmp/bin/python
 
-FROM fedora:35 AS base
+RUN cd "/tmp/bedtools2" \
+&&  PATH="/tmp/bin:$PATH" make -j $(nproc)  \
+&&  PATH="/tmp/bin:$PATH" make test 2>&1 | grep -q 'Tools failing:  negativecontrol'
+
+FROM ubuntu:20.04 AS base
+ARG CONTAINER_VERSION
+ARG CONTAINER_TITLE
 
 COPY --from=builder "/tmp/bedtools2/bin" "/usr/local/bin"
 COPY --from=builder "/tmp/bedtools2/LICENSE" "/usr/local/share/licenses/bedtools/LICENSE"
 
-RUN dnf update -y \
-     && dnf install -y --setopt=install_weak_deps=False --best        \
-     xz bzip2 zlib && dnf clean all
+RUN apt-get update \
+&&  apt-get install -y bzip2 \
+                       xz-utils \
+                       zlib1g \
+&&  rm -rf /var/lib/apt/lists/*
 
 RUN chown -R root:root /usr/local/share/licenses/
 
-ENV SHELL=/usr/bin/bash
-ENV PATH='/usr/local/bin:/usr/bin'
-
-LABEL maintainer='Roberto Rossini <roberros@uio.no>'
-LABEL version=2.30.0
-WORKDIR /data
 ENTRYPOINT ["/usr/local/bin/bedtools"]
+WORKDIR /data
 
 RUN bedtools --help
+
+LABEL org.opencontainers.image.authors='Roberto Rossini <roberros@uio.no>'
+LABEL org.opencontainers.image.url='https://github.com/paulsengroup/2021-modle-paper-001-data-analysis'
+LABEL org.opencontainers.image.documentation='https://github.com/2021-modle-paper-001-data-analysis'
+LABEL org.opencontainers.image.source='https://github.com/paulsengroup/2021-modle-paper-001-data-analysis'
+LABEL org.opencontainers.image.licenses='MIT'
+LABEL org.opencontainers.image.title="${CONTAINER_TITLE:-bedtools}"
+LABEL org.opencontainers.image.version="${CONTAINER_VERSION:-latest}"

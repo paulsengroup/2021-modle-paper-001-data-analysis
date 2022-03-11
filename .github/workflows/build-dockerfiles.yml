@@ -48,34 +48,35 @@ jobs:
         id: process-changed-files
         run: |
           prefix="${{ matrix.image-name }}"
+
+          dockerfile="$(ls "containers/$prefix"*.Dockerfile)"
+          name="$prefix"
+          version="$(echo "$dockerfile" | sed -E 's/.*__v(.*)\.Dockerfile$/\1/')"
           flag=false
+
           echo ${{ steps.collect-changed-files.outputs.all_changed_and_modified_files }}
           for file in ${{ steps.collect-changed-files.outputs.all_changed_and_modified_files }}; do
-            if [[ $file == containers/$prefix*.Dockerfile || $file == .github/workflows/build-dockerfiles.yml ]]; then
+            if [[ "$file" == "$dockerfile" || "$file" == .github/workflows/build-dockerfiles.yml ]]; then
               flag=true
-              echo "Detected change in file \"$file\" -> Rebuild $prefix image"
               break
             fi
           done
 
-          echo "flag=$flag"
-          echo "::set-output name=run::$flag"
+          echo "${{ matrix.image-name }} v$version -> Rebuild: $flag"
 
-      - name: Extract image version
-        id: image-version
+          echo "::set-output name=run::$flag"
+          echo "::set-output name=name::$name"
+          echo "::set-output name=version::$version"
+          echo "::set-output name=dockerfile::$dockerfile"
+
+      - name: Generate tags
+        id: generate-tags
         if: ${{ steps.process-changed-files.outputs.run == 'true' }}
         working-directory: ${{ github.workspace }}/containers
         run: |
-          ls ${{ matrix.image-name }}*.Dockerfile
-
-          ver="$(ls ${{ matrix.image-name }}*.Dockerfile | sed 's|.*__v\(.*\)\.Dockerfile|\1|')"
-
-          echo "${{ matrix.image-name }} version: $ver"
-          echo "::set-output name=ver::$ver"
-
           base_tag="ghcr.io/${{ github.repository }}/${{ matrix.image-name }}"
 
-          tags="$base_tag:$ver"
+          tags="$base_tag:${{ steps.process-changed-files.outputs.version }}"
           tags+=",$base_tag:latest"
           tags+=",$base_tag:$(git rev-parse --short HEAD)"
 
@@ -83,7 +84,7 @@ jobs:
           echo "::set-output name=tags::$tags"
 
       - name: Login to GitHub Container Registry
-        if: ${{ github.event_name != 'pull_request' && steps.process-changed-files.outputs.run == 'true' }}
+        if: ${{ steps.process-changed-files.outputs.run == 'true' }}
         uses: docker/login-action@v1
         with:
           registry: ghcr.io
@@ -95,14 +96,15 @@ jobs:
         uses: docker/setup-buildx-action@v1
 
       - name: Build Docker image and push to registries
-        id: docker_build
+        id: docker-build
         if: ${{ steps.process-changed-files.outputs.run == 'true' }}
         uses: docker/build-push-action@v2
         with:
           push: ${{ github.event_name != 'pull_request' }}
           cache-from: type=gha
-          cache-to: type=gha,mode=max
-          tags: ${{ steps.image-version.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          file: containers/${{ matrix.image-name }}__v${{ steps.image-version.outputs.ver }}.Dockerfile
-          build-args: CONTAINER_VERSION=${{ steps.image-version.outputs.ver }}
+          cache-to: type=gha,mode=min
+          tags: ${{ steps.generate-tags.outputs.tags }}
+          file: ${{ steps.process-changed-files.outputs.dockerfile }}
+          build-args: |
+            CONTAINER_VERSION=${{ steps.image-version.outputs.version }}
+            CONTAINER_TITLE=${{ steps.image-version.outputs.name }}

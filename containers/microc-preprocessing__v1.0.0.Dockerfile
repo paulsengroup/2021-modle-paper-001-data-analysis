@@ -14,7 +14,7 @@ RUN apt-get update \
 && shasum -c sum.sha256 \
 && install -Dm755 get_qc.py /usr/local/bin/get_qc.py
 
-FROM mambaorg/micromamba:0.19.1 AS base
+FROM mambaorg/micromamba:0.22.0 AS base
 
 ARG BEDTOOLS_VER='2.30.*'
 ARG BWA_MEM2_VER='2.2.*'
@@ -55,8 +55,15 @@ RUN micromamba install -y \
 ENV PATH="/opt/conda/bin:$PATH"
 
 ARG CONTAINER_VERSION
-LABEL maintainer='Roberto Rossini <roberros@uio.no>'
-LABEL version=${CONTAINER_VERSION}
+ARG CONTAINER_TITLE
 WORKDIR /data
 
 RUN get_qc.py --help
+
+LABEL org.opencontainers.image.authors='Roberto Rossini <roberros@uio.no>'
+LABEL org.opencontainers.image.url='https://github.com/paulsengroup/2021-modle-paper-001-data-analysis'
+LABEL org.opencontainers.image.documentation='https://github.com/2021-modle-paper-001-data-analysis'
+LABEL org.opencontainers.image.source='https://github.com/paulsengroup/2021-modle-paper-001-data-analysis'
+LABEL org.opencontainers.image.licenses='MIT'
+LABEL org.opencontainers.image.title="${CONTAINER_TITLE:-microc-processing}"
+LABEL org.opencontainers.image.version="${CONTAINER_VERSION:-latest}"

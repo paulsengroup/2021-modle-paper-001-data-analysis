@@ -2,31 +2,36 @@
 #
 # SPDX-License-Identifier: MIT
 
-FROM fedora:35 AS base
+FROM mambaorg/micromamba:0.22.0 AS base
 
+ARG MAMBA_DOCKERFILE_ACTIVATE=1
 
 ARG CONTAINER_VERSION
 ARG CONTAINER_TITLE
+ARG COOLTOOLS_VER=${CONTAINER_VERSION}
+ARG PIP_NO_CACHE_DIR=0
 
-RUN dnf update -y \
-&&  dnf install -y findutils \
-                   gawk \
-                   perl-Digest-SHA \
-                   pigz \
-                   poppler-utils \
-                   sed \
-                   unzip \
-                   zstd \
-&&  dnf clean all
+RUN micromamba install -y \
+        -c conda-forge \
+        -c bioconda \
+        "cooltools=$COOLTOOLS_VER" \
+&& micromamba clean --all -y
 
-ENV SHELL=/usr/bin/bash
+ENV PATH="/opt/conda/bin:$PATH"
 
+ENTRYPOINT ["/opt/conda/bin/cooltools"]
 WORKDIR /data
+
+
+RUN cooltools --help
+RUN cooler --help
+RUN python3 -c "import cooler; import cooltools"
 
 LABEL org.opencontainers.image.authors='Roberto Rossini <roberros@uio.no>'
 LABEL org.opencontainers.image.url='https://github.com/paulsengroup/2021-modle-paper-001-data-analysis'
 LABEL org.opencontainers.image.documentation='https://github.com/2021-modle-paper-001-data-analysis'
 LABEL org.opencontainers.image.source='https://github.com/paulsengroup/2021-modle-paper-001-data-analysis'
 LABEL org.opencontainers.image.licenses='MIT'
-LABEL org.opencontainers.image.title="${CONTAINER_TITLE:-utils}"
+LABEL org.opencontainers.image.title="${CONTAINER_TITLE:-cooltools}"
 LABEL org.opencontainers.image.version="${CONTAINER_VERSION:-latest}"
+
