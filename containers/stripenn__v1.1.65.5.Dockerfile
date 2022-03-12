@@ -2,37 +2,39 @@
 #
 # SPDX-License-Identifier: MIT
 
-FROM mambaorg/micromamba:0.22.0 AS base
+FROM fedora:35 AS base
 
 ARG CONTAINER_VERSION
 ARG CONTAINER_TITLE
 ARG STRIPENN_VER=${CONTAINER_VERSION}
 
-ARG MAMBA_DOCKERFILE_ACTIVATE=1
 ARG PIP_NO_CACHE_DIR=0
 
 RUN if [ -z "$CONTAINER_VERSION" ]; then echo "Missing CONTAINER_VERSION --build-arg" && exit 1; fi
 
-RUN micromamba install -y \
-    -c conda-forge \
-    -c fastai \
-    -c bioconda \
-    cooler \
-    joblib \
-    matplotlib \
-    numpy \
-    opencv-python-headless \
-    pandas \
-    scikit-image \
-    scipy \
-    tqdm \
-    typer \
-&&  pip3 install "stripenn==${STRIPENN_VER}" --no-deps
-
-ENV PATH="/opt/conda/bin:$PATH"
+RUN dnf update -y \
+&&  dnf install -y gcc \
+                   python3-joblib \
+                   python3-matplotlib \
+                   python3-numpy \
+                   python3-opencv \
+                   python3-pip \
+                   python3-pandas \
+                   python3-scikit-image \
+                   python3-scipy \
+                   python3-tqdm \
+                   python3-typer \
+                   zlib-devel \
+&&  pip3 install cooler \
+&&  pip3 install "stripenn==${STRIPENN_VER}" --no-deps \
+&&  dnf remove -y gcc \
+                  python3-pip \
+                  zlib-devel \
+&&  dnf autoremove -y \
+&&  dnf clean all
 
 WORKDIR /data
-ENTRYPOINT ["/opt/conda/bin/stripenn"]
+ENTRYPOINT ["/usr/local/bin/stripenn"]
 
 RUN stripenn --help
 
