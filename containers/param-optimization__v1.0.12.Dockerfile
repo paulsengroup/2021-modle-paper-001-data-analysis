@@ -19,18 +19,19 @@ ENV SHELL=/usr/bin/bash
 RUN if [ -z "$CONTAINER_VERSION" ]; then echo "Missing CONTAINER_VERSION --build-arg" && exit 1; fi
 
 RUN apt-get update \
-    && apt-get install -y          \
-                       bash        \
-                       gcc         \
-                       python3     \
-                       python3-dev \
-                       python3-pip \
+    && apt-get install -y                    \
+                       bash                  \
+                       gcc                   \
+                       python3               \
+                       python3-dev           \
+                       python3-pkg-resources \
+                       python3-pip           \
     && pip install bioframe==${BIOFRAME_VER}         \
                    pandas==${PANDAS_VER}             \
                    pyBigWig==${PYBIGWIG_VER}         \
                    scikit-optimize==${SKOPT_VER}     \
                    scipy==${SCIPY_VER}               \
-    && apt-get remove -y gcc python3-dev python3-pip \
+    && apt-get remove -y gcc python3-pip \
     && apt-get autoremove -y \
     && rm -rf /var/lib/apt/lists/*
 
