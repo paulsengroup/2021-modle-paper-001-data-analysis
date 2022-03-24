@@ -110,10 +110,22 @@ workflow {
                                        params.md_monomer_size,
                                        Channel.of(modle_nthreads).flatten())
 
+        benchmark_modle_strong_scaling_no_smt(Channel.of(modle_task_ids).flatten(),
+                                              file(params.modle_template_config),
+                                              file(params.hg38_chrom_sizes),
+                                              file(params.hg38_extr_barriers),
+                                              params.md_monomer_size,
+                                              Channel.of(modle_nthreads).flatten())
+
         benchmark_modle_strong_scaling.out.report.collectFile(keepHeader: true,
                                                               name: "${output_dir}/modle_strong_scaling_benchmark_report.tsv",
                                                               sort: false,
                                                               skip: 1)
+
+        benchmark_modle_strong_scaling_no_smt.out.report.collectFile(keepHeader: true,
+                                                                     name: "${output_dir}/modle_strong_scaling_no_smt_benchmark_report.tsv",
+                                                                     sort: false,
+                                                                     skip: 1)
     }
 
     if (params.run_modle_ncells) {
@@ -223,7 +235,7 @@ process benchmark_openmm_cpu_weak_scaling {
         time * task.attempt
      }
     label 'error_retry'
-    cpus = 10
+    cpus = 8
 
     input:
         val id
@@ -388,8 +400,8 @@ process benchmark_modle_st_weak_scaling {
 
         rm -rf tmp/
 
-        record="!{id}\t!{task.cpus}\tmodle_st_weak_scaling\t$chrom_size_bp\t$(hostname)\t$(date +"%T.%N")\t$report"
-        printf 'id\\tnthreads\\tname\\tchrom_size\\thostname\\tdate\\twall_clock\\tsystem_time\\tuser_time\\tmax_resident_mem_kb\\n%s\\n' "${record//$'\\n'/}" |
+        record="!{id}\t!{task.cpus}\t!{task.cpus}\tmodle_st_weak_scaling\t$chrom_size_bp\t$(hostname)\t$(date +"%T.%N")\t$report"
+        printf 'id\\tncores\\tnthreads\\tname\\tchrom_size\\thostname\\tdate\\twall_clock\\tsystem_time\\tuser_time\\tmax_resident_mem_kb\\n%s\\n' "${record//$'\\n'/}" |
             tee -a "$out_prefix.log"
         '''
 }
@@ -422,10 +434,12 @@ process benchmark_modle_mt_weak_scaling {
         out_prefix="$(printf '!{id}_modle_mt_%d_%d' !{task.cpus} $chrom_size_bp)"
         printf '%s\\t%d\\n' '!{chrom_name}' $chrom_size_bp > tmp/tmp.chrom.sizes
 
+        nthreads="$(( 2 * !{task.cpus} ))"
+
         sed 's|^chrom-sizes=.*|chrom-sizes="tmp/tmp.chrom.sizes"|' "!{base_config}" |
         sed 's|^extrusion-barrier-file=.*|extrusion-barrier-file="!{extr_barriers}"|' |
         sed 's|^bin-size=.*|bin-size=!{bin_size}|' |
-        sed 's|^threads=.*|threads=!{task.cpus}|' |
+        sed "s|^threads=.*|threads=$nthreads|" |
         sed "s|^output-prefix=.*|output-prefix=\"$out_prefix\"|" > tmp/config.tmp.toml
 
         report="$(command time -f '%e %S %U %M' modle --config tmp/config.tmp.toml |&
@@ -435,8 +449,8 @@ process benchmark_modle_mt_weak_scaling {
 
         rm -rf tmp/
 
-        record="!{id}\t!{task.cpus}\tmodle_mt_weak_scaling\t$chrom_size_bp\t$(hostname)\t$(date +"%T.%N")\t$report"
-        printf 'id\\tnthreadst\\tname\\tchrom_size\\thostname\\tdate\\twall_clock\\tsystem_time\\tuser_time\\tmax_resident_mem_kb\\n%s\\n' "${record//$'\\n'/}" |
+        record="!{id}\t!{task.cpus}\t$nthreads\tmodle_mt_weak_scaling\t$chrom_size_bp\t$(hostname)\t$(date +"%T.%N")\t$report"
+        printf 'id\\tncores\\tnthreads\\tname\\tchrom_size\\thostname\\tdate\\twall_clock\\tsystem_time\\tuser_time\\tmax_resident_mem_kb\\n%s\\n' "${record//$'\\n'/}" |
             tee -a "$out_prefix.log"
         '''
 }
@@ -473,10 +487,12 @@ process benchmark_modle_strong_scaling {
 
         out_prefix="$(printf '!{id}_modle_strong_scaling_%d' !{task.cpus})"
 
+        nthreads="$(( 2 * !{task.cpus} ))"
+
         sed 's|^chrom-sizes=.*|chrom-sizes="!{chrom_sizes}"|' "!{base_config}" |
         sed 's|^extrusion-barrier-file=.*|extrusion-barrier-file="!{extr_barriers}"|' |
         sed 's|^bin-size=.*|bin-size=!{bin_size}|' |
-        sed 's|^threads=.*|threads=!{task.cpus}|' |
+        sed "s|^threads=.*|threads=$nthreads|" |
         sed "s|^output-prefix=.*|output-prefix=\"$out_prefix\"|" |
         tee "tmp/config.tmp.toml" > /dev/null
 
@@ -487,17 +503,70 @@ process benchmark_modle_strong_scaling {
 
         rm -rf tmp/
 
-        record="!{id}\t!{task.cpus}\tmodle_strong_scaling\t$(hostname)\t$(date +"%T.%N")\t$report"
-        printf 'id\\tnthreads\\tname\\thostname\\tdate\\twall_clock\\tsystem_time\\tuser_time\\tmax_resident_mem_kb\\n%s\\n' "${record//$'\\n'/}" |
+        record="!{id}\t!{task.cpus}\t$nthreads\tmodle_strong_scaling\t$(hostname)\t$(date +"%T.%N")\t$report"
+        printf 'id\\tncores\\tnthreads\\tname\\thostname\\tdate\\twall_clock\\tsystem_time\\tuser_time\\tmax_resident_mem_kb\\n%s\\n' "${record//$'\\n'/}" |
+            tee -a "$out_prefix.log"
+        '''
+}
+
+process benchmark_modle_strong_scaling_no_smt {
+    label 'error_retry'
+
+    cpus { nthreads }
+    memory { task.attempt * 10e9 as Long }
+    time {
+          thr = Float.parseFloat(nthreads)
+          time = Math.ceil((3600 * 8) / thr) as Long
+          1000 * time * task.attempt
+         }
+
+    input:
+        val id
+        path base_config
+        path chrom_sizes
+        path extr_barriers
+        val bin_size
+        val nthreads
+
+    output:
+        stdout emit: report
+        path "*.log", emit: log
+        path "*.cool", emit: cool
+
+    shell:
+        '''
+        set -o pipefail
+
+        mkdir tmp
+
+        out_prefix="$(printf '!{id}_modle_strong_scaling_no_smt_%d' !{task.cpus})"
+
+        nthreads="!{task.cpus}"
+
+        sed 's|^chrom-sizes=.*|chrom-sizes="!{chrom_sizes}"|' "!{base_config}" |
+        sed 's|^extrusion-barrier-file=.*|extrusion-barrier-file="!{extr_barriers}"|' |
+        sed 's|^bin-size=.*|bin-size=!{bin_size}|' |
+        sed "s|^threads=.*|threads=$nthreads|" |
+        sed "s|^output-prefix=.*|output-prefix=\"$out_prefix\"|" |
+        tee "tmp/config.tmp.toml" > /dev/null
+
+        report="$(command time -f '%e %S %U %M' modle --config tmp/config.tmp.toml |&
+                    tee >(cat 1>&2) |
+                    tail -n 1 |
+                    sed 's/[[:space:]]\\+/\\t/g')"
+
+        rm -rf tmp/
+
+        record="!{id}\t!{task.cpus}\t$nthreads\tmodle_strong_scaling\t$(hostname)\t$(date +"%T.%N")\t$report"
+        printf 'id\\tncores\\tnthreads\\tname\\thostname\\tdate\\twall_clock\\tsystem_time\\tuser_time\\tmax_resident_mem_kb\\n%s\\n' "${record//$'\\n'/}" |
             tee -a "$out_prefix.log"
         '''
 }
 
 process benchmark_modle_ncells {
     label 'error_retry'
+    label 'process_very_high'
 
-    cpus { params.max_cpus}
-    memory { task.attempt * 10e9 as Long }
     time {
           cells = Float.parseFloat(ncells)
           time = Math.ceil(0.2 * cells) as Long
@@ -521,12 +590,13 @@ process benchmark_modle_ncells {
         set -o pipefail
 
         out_prefix='!{id}_modle_ncells_!{ncells}'
+        nthreads="$(( 2 * !{task.cpus} ))"
 
         mkdir tmp
 
         sed 's|^chrom-sizes=.*|chrom-sizes="!{chrom_sizes}"|' "!{base_config}" |
         sed 's|^extrusion-barrier-file=.*|extrusion-barrier-file="!{extr_barriers}"|' |
-        sed 's|^threads=.*|threads=!{task.cpus}|' |
+        sed "s|^threads=.*|threads=$nthreads|" |
         sed 's|^ncells=.*|ncells=!{ncells}|' |
         sed "s|^output-prefix=.*|output-prefix=\"$out_prefix\"|" |
         tee tmp/config.tmp.toml > /dev/null
