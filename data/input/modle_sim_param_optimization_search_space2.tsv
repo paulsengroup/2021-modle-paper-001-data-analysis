@@ -1,0 +1,7 @@
+param	start	end
+--extrusion-barrier-occupancy	0.5	1.0
+--ctcf-not-occupied-probability-of-transition-to-self	0.0	1.0
+--bin-size	5000	5000
+--target-contact-density	6.0	6.0
+--ncells	16	16
+--contact-sampling-strategy	tad-plus-loop-with-noise	tad-plus-loop-with-noise

@@ -18,18 +18,22 @@ workflow {
                                params.gaussian_sigma_multiplier_ref,
                                params.discretization_thresh_ref)
 
+    param_files = Channel.of(file(params.param_space_file1),
+                             file(params.param_space_file2))
+    output_prefixes = Channel.of(file(params.output_prefix1),
+                                 file(params.output_prefix2))
+    starting_points = Channel.of(params.starting_point1,
+                                 params.starting_point2)
     run_optimization(file(params.optimize_modle_sim_script),
-                     file(params.param_space_file),
-                     file(params.output_prefix),
+                     param_files,
+                     output_prefixes,
                      file(params.chrom_sizes_file),
                      file(params.extr_barrier_file),
                      generate_training_and_test_sites.out.training_set,
+                     generate_training_and_test_sites.out.validation_set,
                      transform_reference_matrix.out.transformed_matrix,
                      params.excluded_chroms,
-                     params.starting_point,
-                     params.gaussian_sigma_ref,
-                     params.gaussian_sigma_multiplier_ref,
-                     params.discretization_thresh_ref,
+                     starting_points,
                      params.gaussian_sigma_tgt,
                      params.gaussian_sigma_multiplier_tgt,
                      params.discretization_thresh_tgt,
@@ -39,26 +43,6 @@ workflow {
                      params.optimization_method,
                      params.seed,
                      params.scoring_method)
-
-    test_optimal_params(file(params.optimize_modle_sim_script),
-                        run_optimization.out.summary_tsv,
-                        params.output_prefix,
-                        file(params.chrom_sizes_file),
-                        file(params.extr_barrier_file),
-                        generate_training_and_test_sites.out.testing_set,
-                        transform_reference_matrix.out.transformed_matrix,
-                        params.excluded_chroms,
-                        params.gaussian_sigma_ref,
-                        params.gaussian_sigma_multiplier_ref,
-                        params.discretization_thresh_ref,
-                        params.gaussian_sigma_tgt,
-                        params.gaussian_sigma_multiplier_tgt,
-                        params.discretization_thresh_tgt,
-                        params.diagonal_width,
-                        params.scoring_method,
-                        params.num_params_to_test)
-
-    cooler_zoomify(test_optimal_params.out.cool.flatten())
 }
 
 process generate_training_and_test_sites {
@@ -73,7 +57,7 @@ process generate_training_and_test_sites {
 
     output:
         path "*_training.tsv", emit: training_set
-        path "*_testing.tsv", emit: testing_set
+        path "*_validation.tsv", emit: validation_set
 
     shell:
         '''
@@ -94,7 +78,7 @@ process generate_training_and_test_sites {
         assert df1.shape[0] + df2.shape[0] == df.shape[0]
 
         df1.to_csv(f"{bname}_eval_sites_for_training.tsv", sep="\\t", index=False)
-        df2.to_csv(f"{bname}_eval_sites_for_testing.tsv", sep="\\t", index=False)
+        df2.to_csv(f"{bname}_eval_sites_for_validation.tsv", sep="\\t", index=False)
         '''
 }
 
@@ -141,13 +125,11 @@ process run_optimization {
         val output_prefix
         path chrom_sizes
         path extrusion_barriers
-        path evaluation_sites
+        path evaluation_sites_training
+        path evaluation_sites_validation
         path reference_matrix
         val excluded_chroms
         val starting_point
-        val blur_sigma_ref
-        val blur_sigma_mult_ref
-        val discret_thresh_ref
         val blur_sigma_tgt
         val blur_sigma_mult_tgt
         val discret_thresh_tgt
@@ -159,85 +141,33 @@ process run_optimization {
         val scoring_method
 
     output:
-        path "${output_prefix.fileName}_${optimization_method}.pickle", emit: stats_pickle
-        path "${output_prefix.fileName}_${optimization_method}.tsv", emit: summary_tsv
+        path "*.pickle", emit: stats_pickle
+        path "*.tsv", emit: summary_tsv
+        path "*.tar", emit: tar
+        val "${output_prefix.fileName}_${optimization_method}", emit: output_prefix
 
     shell:
         out="${output_prefix.fileName}"
         '''
         ./'!{main_script}' optimize \
-             --param-space-tsv="!{param_space_file}"                       \
-             --output-prefix="!{out}"                                      \
-             --chrom-sizes="!{chrom_sizes}"                                \
-             --extrusion-barriers="!{extrusion_barriers}"                  \
-             --evaluation-sites="!{evaluation_sites}"                      \
-             --transformed-reference-matrix="!{reference_matrix}"          \
-             --excluded-chroms="!{excluded_chroms}"                        \
-             --x0="!{starting_point}"                                      \
-             --gaussian-blur-sigma-ref="!{blur_sigma_ref}"                 \
-             --gaussian-blur-sigma-multiplier-ref="!{blur_sigma_mult_ref}" \
-             --discretization-thresh-ref="!{discret_thresh_ref}"           \
-             --gaussian-blur-sigma-tgt="!{blur_sigma_tgt}"                 \
-             --gaussian-blur-sigma-multiplier-tgt="!{blur_sigma_mult_tgt}" \
-             --discretization-thresh-tgt="!{discret_thresh_tgt}"           \
-             --diagonal-width="!{diagonal_width}"                          \
-             --ncalls="!{ncalls}"                                          \
-             --nrandom-starts="!{num_random_starts}"                       \
-             --optimization-method="!{optimization_method}"                \
-             --seed="!{seed}"                                              \
-             --nthreads=!{task.cpus}                                       \
-             --modle-tools-eval-metric="!{scoring_method}"
-        '''
-}
-
-process test_optimal_params {
-    publishDir "${params.output_dir}/test", mode: 'copy'
-
-    label 'process_high'
-
-    input:
-        path main_script
-        path optimization_result
-        val output_prefix
-        path chrom_sizes
-        path extrusion_barriers
-        path evaluation_sites
-        path reference_matrix
-        val excluded_chroms
-        val blur_sigma_ref
-        val blur_sigma_mult_ref
-        val discret_thresh_ref
-        val blur_sigma_tgt
-        val blur_sigma_mult_tgt
-        val discret_thresh_tgt
-        val diagonal_width
-        val scoring_method
-        val num_params_to_test
-
-    output:
-        path "*.cool", emit: cool
-        path "*.bw", emit: bigwig
-        path "*.tsv", emit: report
-
-    shell:
-        '''
-        ./'!{main_script}' test \
-             --optimization-result-tsv="!{optimization_result}"            \
-             --num-params-to-test=!{num_params_to_test}                    \
-             --output-prefix="!{output_prefix}"                            \
-             --chrom-sizes="!{chrom_sizes}"                                \
-             --extrusion-barriers="!{extrusion_barriers}"                  \
-             --evaluation-sites="!{evaluation_sites}"                      \
-             --transformed-reference-matrix="!{reference_matrix}"                      \
-             --excluded-chroms="!{excluded_chroms}"                        \
-             --gaussian-blur-sigma-ref="!{blur_sigma_ref}"                 \
-             --gaussian-blur-sigma-multiplier-ref="!{blur_sigma_mult_ref}" \
-             --discretization-thresh-ref="!{discret_thresh_ref}"           \
-             --gaussian-blur-sigma-tgt="!{blur_sigma_tgt}"                 \
-             --gaussian-blur-sigma-multiplier-tgt="!{blur_sigma_mult_tgt}" \
-             --discretization-thresh-tgt="!{discret_thresh_tgt}"           \
-             --diagonal-width="!{diagonal_width}"                          \
-             --nthreads=!{task.cpus}                                       \
+             --param-space-tsv="!{param_space_file}"                        \
+             --output-prefix="!{out}"                                       \
+             --chrom-sizes="!{chrom_sizes}"                                 \
+             --extrusion-barriers="!{extrusion_barriers}"                   \
+             --evaluation-sites-training="!{evaluation_sites_training}"     \
+             --evaluation-sites-validation="!{evaluation_sites_validation}" \
+             --transformed-reference-matrix="!{reference_matrix}"           \
+             --excluded-chroms="!{excluded_chroms}"                         \
+             --x0="!{starting_point}"                                       \
+             --gaussian-blur-sigma-tgt="!{blur_sigma_tgt}"                  \
+             --gaussian-blur-sigma-multiplier-tgt="!{blur_sigma_mult_tgt}"  \
+             --discretization-thresh-tgt="!{discret_thresh_tgt}"            \
+             --diagonal-width="!{diagonal_width}"                           \
+             --ncalls="!{ncalls}"                                           \
+             --nrandom-starts="!{num_random_starts}"                        \
+             --optimization-method="!{optimization_method}"                 \
+             --seed="!{seed}"                                               \
+             --threads=!{task.cpus}                                        \
              --modle-tools-eval-metric="!{scoring_method}"
         '''
 }
