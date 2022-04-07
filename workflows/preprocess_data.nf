@@ -43,6 +43,9 @@ workflow {
                                file(params.h1_ctcf_chip_peaks),
                                file(params.h1_rad21_chip_peaks),
                                "${grch38_bname}_${params.cell_line_name}_barriers_RAD21_occupancy")
+
+   fix_mcool(file(params.microc_mcool),
+             params.microc_base_bin_size)
 }
 
 process generate_chrom_sizes {
@@ -285,4 +288,29 @@ process balance_mcool {
             cooler balance -p !{task.cpus} "${mcool_out}::$dset"
         done
         '''
+}
+
+process fix_mcool {
+    publishDir "${params.output_dir}", mode: 'copy'
+    label 'process_high'
+    label 'process_memory_high'
+
+    input:
+        path mcool
+        val bin_size
+
+    output:
+        path "*_fixed.mcool", emit: mcool
+
+    shell:
+        outprefix="${mcool.baseName}"
+        '''
+        cooler zoomify -p !{task.cpus}                     \
+                       -r 5000N                            \
+                       --balance                           \
+                       --balance-args '-p !{task.cpus}'    \
+                       -o '!{outprefix}_fixed.mcool'       \
+                       '!{mcool}::/resolutions/!{bin_size}'
+        '''
+
 }
