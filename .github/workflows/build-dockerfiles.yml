@@ -24,8 +24,6 @@ jobs:
       matrix:
         image-name: ["bedtools",
                      "cooltools",
-                     "hoomd-blue-benchmark",
-                     "microc-preprocessing",
                      "modle-benchmark",
                      "openmm-benchmark",
                      "openmm-helpers",
