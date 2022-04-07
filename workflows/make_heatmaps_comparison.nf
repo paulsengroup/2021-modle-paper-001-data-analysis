@@ -34,7 +34,8 @@ workflow {
                        file(params.chrom_sizes),
                        run_openmm.out.chrom_name.collect(),
                        run_openmm.out.offset.collect(),
-                       params.monomer_size)
+                       params.monomer_size,
+                       params.bin_size)
 
         modle_configs = Channel.of(file(params.modle_config_tad_plus_loop),
                                    file(params.modle_config_tad_only),
@@ -45,23 +46,100 @@ workflow {
                   file(params.chrom_sizes),
                   file(params.extr_barriers))
 
-        subsample_contacts(run_modle.out.cool,
-                           0.15)
+        coolers0 = run_modle.out.cool.mix(openmm_to_cool.out.cool)
+        subsample_contacts(file(params.subsample_contacts_script),
+                           file(params.microc_cool),
+                           coolers0,
+                           file(params.regions_of_interest),
+                           params.bin_size,
+                           params.contact_subsampling_diagonal_width)
 
-        coolers = subsample_contacts.out.cool.concat(openmm_to_cool.out.cool)
-        cooler_zoomify(coolers)
+        coolers1 = subsample_contacts.out.cool.mix(run_modle.out.cool,
+                                                   openmm_to_cool.out.cool)
+        cooler_zoomify(coolers1)
 
-        // plot_comparison(file(params.plot_comparison_script),
-        //                 file(params.hic_cool),
-        //                 openmm_to_cool.out.cool,
-        //                 run_modle.out.cool,
-        //                 file(params.microc_cool),
-        //                 file(params.regions_of_interest),
-        //                 params.chrom_ranges_microc_cmp,
-        //                 params.bin_size,
-        //                 params.assembly_name,
-        //                 params.color_maps,
-        //                 params.color_scale_intervals)
+        chrom_ranges.name.reduce("") { it, buff ->
+                                       if (buff == "") {
+                                           return it;
+                                       }
+                                           return "${buff},${it}";
+                                      }
+                         .set { chroms_str }
+        chroms_str = chroms_str - ~/,$/  // Strip trailing comma
+        run_stripenn(file(params.microc_cool),
+                     params.bin_size,
+                     chroms_str)
+
+        cooler_zoomify.out.mcool.mix(Channel.of(file(params.microc_cool))).branch {
+                                         microc: it.getBaseName().startsWith(file(params.microc_cool).getBaseName())
+                                         openmm: it.getBaseName().contains("openmm") && it.getBaseName().contains("subsampled")
+                                         modle: it.getBaseName().contains("tad_plus_loop") && it.getBaseName().contains("subsampled")
+                                         others: true
+                                        }
+                                .set { coolers2 }
+
+        coolers3 = Channel.empty().concat(coolers2.microc,
+                                          coolers2.openmm,
+                                          coolers2.modle)
+        mt_transform_cutoffs = Channel.of(params.diff_of_gaussians_cutoff_microc,
+                                          params.diff_of_gaussians_cutoff_openmm,
+                                          params.diff_of_gaussians_cutoff_modle)
+
+        compute_diff_of_gaussian(coolers3,
+                                 params.bin_size,
+                                 mt_transform_cutoffs,
+                                 params.diff_of_gaussians_diagonal_width)
+
+        compute_diff_of_gaussian.out.transformed_cool.branch {
+                                                              microc: it.getBaseName().startsWith(file(params.microc_cool).getBaseName())
+                                                              openmm: it.getBaseName().contains("openmm")
+                                                              modle: it.getBaseName().contains("tad_plus_loop")
+                                                              others: true
+                                                             }
+                                                     .set { coolers4 }
+
+        reference_coolers =
+        target_coolers = Channel.empty().concat(coolers4.openmm,
+                                                coolers4.modle,
+                                                coolers4.openmm)
+        run_modle_tools_eval(Channel.empty().concat(coolers4.openmm,
+                                                    coolers4.modle,
+                                                    coolers4.openmm),
+                             Channel.empty().concat(coolers4.microc,
+                                                    coolers4.microc,
+                                                    coolers4.modle),
+                             params.bin_size,
+                             params.diff_of_gaussians_diagonal_width)
+
+        filter_modle_tools_eval(run_modle_tools_eval.out.vertical_tsv_gz,
+                                run_modle_tools_eval.out.horizontal_tsv_gz,
+                                file(params.regions_of_interest),
+                                run_stripenn.out.filtered)
+
+        dump_pixels(file(params.dump_pixels_script),
+                    Channel.empty().concat(coolers2.openmm,
+                                           coolers2.modle,
+                                           coolers2.openmm),
+                    Channel.empty().concat(coolers2.microc,
+                                           coolers2.microc,
+                                           coolers2.modle),
+                    file(params.regions_of_interest),
+                    params.bin_size,
+                    params.diagonal_width)
+
+        compute_custom_scores_py(file(params.compute_custom_scores_script),
+                                 Channel.empty().concat(coolers2.openmm,
+                                                        coolers2.modle,
+                                                        coolers2.openmm),
+                                 Channel.empty().concat(coolers2.microc,
+                                                        coolers2.microc,
+                                                        coolers2.modle),
+                                 file(params.regions_of_interest),
+                                 params.bin_size,
+                                 params.diagonal_width)
+
+        filter_custom_scores(compute_custom_scores_py.out.vertical_scores.mix(compute_custom_scores_py.out.horizontal_scores),
+                             file(params.extr_barriers))
 }
 
 process liftover_cool {
@@ -107,7 +185,7 @@ process run_modle {
 
         sed 's|^chrom-sizes=.*|chrom-sizes="!{chrom_sizes}"|' "!{config}" |
         sed 's|^extrusion-barrier-file=.*|extrusion-barrier-file="!{extr_barriers}"|' |
-        sed 's|^threads=.*|threads=!{task.cpus}|' > out/config.tmp.toml
+        sed "s|^threads=.*|threads=$(( 2 * !{task.cpus} ))|" > out/config.tmp.toml
 
         modle --config out/config.tmp.toml
         '''
@@ -165,6 +243,7 @@ process openmm_to_cool {
         path chrom_sizes
         val chrom_names
         val offsets
+        val monomer_size
         val bin_size
 
     output:
@@ -190,92 +269,59 @@ process openmm_to_cool {
 
         python '!{main_script}'                 \
             --input-folders ${input_folders[@]} \
-            --output-name "$out_name"           \
+            --output-name "${out_name}.tmp"     \
             --chrom-sizes '!{chrom_sizes}'      \
-            --bin-size !{bin_size}              \
+            --bin-size !{monomer_size}          \
             --chrom-names ${chrom_names[@]}     \
-            --threads !{task.cpus}              \
+            --threads $(( 2 * !{task.cpus} ))   \
             --offsets ${offsets[@]}
 
-        rm -rf *_hdf5
-        '''
-}
+        cooler zoomify -r !{bin_size}              \
+                       -p $(( 2 * !{task.cpus} ))  \
+                       -o "${out_name}.mcool"      \
+                       "${out_name}.tmp"
 
-process plot_comparison {
-    publishDir params.plot_outdir, mode: 'copy',
-                                   saveAs: { "GRCh38_H1_heatmaps_comparison.svg" }
-    label 'process_very_short'
+        cooler cp "${out_name}.mcool::/resolutions/!{bin_size}" "${out_name}"
 
-    input:
-        path script
-        path hic_cool
-        path md_cool
-        path modle_cool
-        path microc_cool
-        path chrom_ranges_hic_cmp
-        val chrom_ranges_microc_cmp
-        val bin_size
-        val assembly_name
-        val color_maps
-        val color_scale_intervals
-
-    output:
-        path "*.svg", emit: plot
-
-    shell:
-        '''
-
-        make_cool_uri () {
-            path="$1"
-            res="$2"
-
-            if [[ $path == *.mcool ]]; then
-                echo "$path::/resolutions/$res"
-            else
-                echo "$path"
-            fi
-        }
-
-        hic_cool="$(make_cool_uri '!{hic_cool}' !{bin_size})"
-        md_cool="$(make_cool_uri '!{md_cool}' !{bin_size})"
-        modle_cool="$(make_cool_uri '!{modle_cool}' !{bin_size})"
-        microc_cool="$(make_cool_uri '!{microc_cool}' !{bin_size})"
-
-        ./make_heatmap_comparison_plot.py                                        \
-            --path-to-hic-cool "$hic_cool"                                       \
-            --path-to-md-cool "$md_cool"                                         \
-            --path-to-modle-cool "$modle_cool"                                   \
-            --path-to-microc-cool "$microc_cool"                                 \
-            --color-maps '!{color_maps}'                                         \
-            --color-scale-intervals '!{color_scale_intervals}'                   \
-            --path-to-chrom-subranges-hic-comparison '!{chrom_ranges_hic_cmp}'   \
-            --chrom-subrange-microc-comparison-ucsc '!{chrom_ranges_microc_cmp}' \
-            --output-name '!{assembly_name}_comparison.svg'
+        rm -rf *.tmp *_hdf5 *.mcool
         '''
 }
 
 process subsample_contacts {
     publishDir params.matrix_outdir, mode: 'copy'
-    label 'process_short'
+
+    label 'process_medium'
 
     input:
-        path cool
-        val fraction
+        path script
+        path reference
+        path target
+        path chrom_ranges
+        val bin_size
+        val diagonal_width
 
     output:
         path "*.cool", emit: cool
 
     shell:
         '''
-        out="$(basename '!{cool}' .cool)_subsampled.cool"
-        cooltools random-sample --frac !{fraction} \
-                                -p !{task.cpus}    \
-                                '!{cool}' "$out"
+        out="$(basename '!{target}' .mcool)"
+        out="$(basename "$out" .cool)_subsampled.cool"
+
+        python '!{script}' \
+                --ref-matrix '!{reference}'          \
+                --tgt-matrix '!{target}'             \
+                --bin-size '!{bin_size}'             \
+                --diagonal-width '!{diagonal_width}' \
+                --output "$out"                      \
+                --chrom-ranges-bed '!{chrom_ranges}' \
+                --threads $(( 2 * !{task.cpus} ))
         '''
 }
 
 process cooler_zoomify {
     publishDir params.matrix_outdir, mode: 'copy'
+    memory '16.G'
 
     input:
         path cool
@@ -288,5 +334,267 @@ process cooler_zoomify {
         cooler zoomify -r 5000N        \
                        -p !{task.cpus} \
                        '!{cool}'
+        '''
+}
+
+process compute_diff_of_gaussian {
+    publishDir params.matrix_outdir, mode: 'copy'
+
+    label 'process_medium'
+
+    input:
+        path cool
+        val bin_size
+        val cutoff
+        val diagonal_width
+
+    output:
+        path "*.cool", emit: transformed_cool
+
+    shell:
+        '''
+        outname='!{cool}'
+        outname="${outname%.mcool}"
+        outname="${outname%.cool}_transformed.cool"
+
+        modle_tools transform                               \
+                    -i '!{cool}'                            \
+                    -o "$outname"                           \
+                    --bin-size '!{bin_size}'                \
+                    -m difference_of_gaussians              \
+                    --binary-discretization-value !{cutoff} \
+                    -w !{diagonal_width}                    \
+                    --threads $(( 2 * !{task.cpus} ))
+        '''
+}
+
+process run_modle_tools_eval {
+    publishDir "${params.outdir}/eval", mode: 'copy'
+
+    label 'process_medium'
+
+    when:
+        target_cool != reference_cool
+
+    input:
+        path target_cool
+        path reference_cool
+        val bin_size
+        val diagonal_width
+
+    output:
+        path "*horizontal.bw", emit: horizontal_bwig
+        path "*vertical.bw", emit: vertical_bwig
+        path "*horizontal.tsv.gz", emit: horizontal_tsv_gz
+        path "*vertical.tsv.gz", emit: vertical_tsv_gz
+
+    shell:
+        '''
+        prefix1='!{target_cool}'
+        prefix1="${prefix1%.mcool}"
+        prefix1="${prefix1%.cool}"
+        prefix2='!{reference_cool}'
+        prefix2="${prefix2%.mcool}"
+        prefix2="${prefix2%.cool}"
+
+        out_prefix="${prefix1}_${prefix2}"
+
+        modle_tools eval                                   \
+                    -i '!{target_cool}'                    \
+                    --reference-matrix '!{reference_cool}' \
+                    -o "$out_prefix"                       \
+                    --bin-size '!{bin_size}'               \
+                    -w !{diagonal_width}                   \
+                    --threads $(( 2 * !{task.cpus} ))
+        '''
+}
+
+process filter_modle_tools_eval {
+    publishDir "${params.outdir}/eval", mode: 'copy'
+
+    label 'process_medium'
+
+    input:
+        path vertical_scores_tsv
+        path horizontal_scores_tsv
+        path regions_of_interest
+        path stripes_bed
+
+    output:
+        path "*vertical*.tsv.gz", emit: vertical_tsv_gz
+        path "*horizontal*.tsv.gz", emit: horizontal_tsv_gz
+
+    shell:
+        '''
+        bedtools intersect -a <(tail -n +2 '!{stripes_bed}') \
+                           -b '!{regions_of_interest}'       \
+           > regions_of_interest.bed.tmp
+
+        outname_vertical="$(basename '!{vertical_scores_tsv}' .tsv.gz)_filtered.tsv.gz"
+        outname_horizontal="$(basename '!{horizontal_scores_tsv}' .tsv.gz)_filtered.tsv.gz"
+
+        header="$(head -n 1 '!{vertical_scores_tsv}')"
+
+
+        bedtools intersect -a <(zcat '!{vertical_scores_tsv}') \
+                           -b regions_of_interest.bed.tmp > bed1.tmp
+        cat <(echo $header) bed1.tmp | gzip -9 > "$outname_vertical"
+
+        bedtools intersect -a <(zcat '!{horizontal_scores_tsv}') \
+                           -b regions_of_interest.bed.tmp > bed2.tmp
+
+        cat <(echo $header) bed2.tmp | gzip -9 > "$outname_horizontal"
+
+        rm *.tmp
+        '''
+}
+
+process run_stripenn {
+    publishDir "${params.outdir}/stripenn", mode: 'copy'
+
+    label 'process_medium'
+    label 'process_long'
+
+    input:
+        path cool
+        val resolution
+        val chroms
+
+    output:
+        path "*_filtered.tsv", emit: filtered
+        path "*_unfiltered.tsv", emit: unfiltered
+        path "*_stripenn.log", emit: log
+
+    shell:
+        '''
+        input_name="!{cool}"
+        if [[ $input_name == *.mcool ]]; then
+            input_name="${input_name}::/resolutions/!{resolution}"
+        fi
+
+        # Apparently --norm and --chrom are required in order to get stripenn
+        # to work reliably
+        stripenn compute --cool "$input_name"               \
+                         --out tmpout/                      \
+                         --chrom "!{chroms}"                \
+                         --norm weight                      \
+                         --numcores $(( 2 * !{task.cpus} ))
+
+        out_prefix="$(basename "!{cool}")"
+        out_prefix="${out_prefix%.*}"
+
+        mv tmpout/result_filtered.tsv "${out_prefix}_filtered.tsv"
+        mv tmpout/result_unfiltered.tsv "${out_prefix}_unfiltered.tsv"
+        mv tmpout/stripenn.log "${out_prefix}_stripenn.log"
+        '''
+}
+
+process dump_pixels {
+    publishDir "${params.outdir}/dumps", mode: 'copy'
+    label 'process_short'
+
+    input:
+        path main_script
+        path ref_cool
+        path tgt_cool
+        path regions_of_interest
+        val resolution
+        val diagonal_width
+
+    output:
+        path "*.tsv.gz", emit: pixels
+
+    shell:
+        out="${ref_cool.simpleName}_vs_${tgt_cool.simpleName}.tsv.gz"
+        '''
+        set -o pipefail
+
+        python3 '!{main_script}'                        \
+            --ref-matrix '!{ref_cool}'                  \
+            --tgt-matrix '!{tgt_cool}'                  \
+            --chrom-ranges-bed '!{regions_of_interest}' \
+            --bin-size '!{resolution}'                  \
+            --diagonal-width '!{diagonal_width}'        |
+        gzip -9c > '!{out}'
+
+        '''
+
+}
+
+process compute_custom_scores_py {
+    publishDir "${params.outdir}/eval", mode: 'copy'
+    label 'process_short'
+
+    input:
+        path main_script
+        path ref_cool
+        path tgt_cool
+        path regions_of_interest
+        val resolution
+        val diagonal_width
+
+    output:
+        path "*_vertical.bedpe.gz", emit: vertical_scores
+        path "*_horizontal.bedpe.gz", emit: horizontal_scores
+
+    shell:
+        outprefix="${ref_cool.simpleName}_vs_${tgt_cool.simpleName}"
+        '''
+        set -o pipefail
+
+        out_vertical="$(echo '!{outprefix}' | sed 's/_transformed//g')_vertical.bedpe.gz"
+        out_horizontal="$(echo '!{outprefix}' | sed 's/_transformed//g')_horizontal.bedpe.gz"
+
+        python3 '!{main_script}' \
+            --ref-matrix '!{ref_cool}'                  \
+            --tgt-matrix '!{tgt_cool}'                  \
+            --chrom-ranges-bed '!{regions_of_interest}' \
+            --bin-size '!{resolution}'                  \
+            --direction 'horizontal'                    \
+            --diagonal-width '!{diagonal_width}'        |
+        gzip -9c > "$out_horizontal"
+
+        python3 '!{main_script}' \
+            --ref-matrix '!{ref_cool}'                  \
+            --tgt-matrix '!{tgt_cool}'                  \
+            --chrom-ranges-bed '!{regions_of_interest}' \
+            --bin-size '!{resolution}'                  \
+            --direction 'vertical'                      \
+            --diagonal-width '!{diagonal_width}'        |
+        gzip -9c > "$out_vertical"
+        '''
+}
+
+process filter_custom_scores {
+    publishDir "${params.outdir}/eval", mode: 'copy'
+    label 'process_short'
+
+    input:
+        path input_scores
+        path filtering_bed
+
+    output:
+        path "*_filtered.bedpe.gz", emit: scores
+
+    shell:
+        out="${input_scores.simpleName}_filtered.bedpe.gz"
+        '''
+        if [[ '!{input_scores}' == *_vertical.bedpe.* ]]; then
+            pattern='[[:space:]]-[[:space:]]*$'
+        else
+            pattern='[[:space:]]+[[:space:]]*$'
+        fi
+
+        header="$(zcat '!{input_scores}' | head -n 1 | tr -d '\\n')"
+        printf "%s\\tbarrier_strength\\tbarrier_direction\\n" "$header" > '!{out}.tmp'
+
+        bedtools intersect -a <(zcat '!{input_scores}'| tail -n +2 )       \
+                           -b <(zcat '!{filtering_bed}' | grep "$pattern") \
+                           -loj              |
+                           grep -v '\\-1'    |
+                           cut -f 1-11,16-17 >> '!{out}.tmp'
+
+        gzip -9 < '!{out}.tmp' > '!{out}'
+        rm '!{out}.tmp'
         '''
 }
