@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
 
+# Copyright (C) 2022 Roberto Rossini <roberros@uio.no>
+#
+# SPDX-License-Identifier: MIT
+
 """
 Several functions have been copied verbatim or with minor modifications from scikit-optimize:
 https://github.com/scikit-optimize/scikit-optimize/blob/0.9.X/skopt/plots.py

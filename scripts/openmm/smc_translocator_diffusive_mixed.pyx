@@ -1,12 +1,18 @@
 #!python
+
+# Copyright (C) 2020 Edward Banigan, Aafke van den Berg, and Hugo Brandão
+# Copyright (C) 2022 Roberto Rossini <roberros@uio.no>
+#
+# SPDX-License-Identifier: MIT
+
 #cython: boundscheck=False
 #cython: wraparound=False
 #cython: initializedcheck=True
 
 import numpy as np
-cimport numpy as np 
+cimport numpy as np
 import cython
-cimport cython 
+cimport cython
 #import sys
 #sys.path.insert(0, "/net/levsha/share/homes/aafke/libs/looplib/")
 #sys.path.insert(0, "/net/levsha/share/homes/aafke/libs/looplib/looplib/looptools_c")
@@ -17,7 +23,7 @@ from looplib import looptools
 
 
 cdef extern from "<stdlib.h>":
-    double drand48()   
+    double drand48()
 
 cdef cython.double randnum():
     return drand48()
@@ -41,7 +47,7 @@ cdef class smcTranslocatorDirectional(object):
     cdef cython.long [:] occupied # list of whether or not site is occupied
     cdef cython.long [:] onesided # list of whether or not each SMC is one-sided
     cdef cython.long [:] inactive_side # list of which of the two sides is inactive. needed to differentiate between two sides in case where active side runs into a stall site
-    cdef cython.int paired # whether or not SMCs are "paired" 
+    cdef cython.int paired # whether or not SMCs are "paired"
     cdef cython.int slide # whether or not one leg of the one-sided SMC diffuses passively instead of extruding
     cdef cython.double [:] slidepause # pause probability for diffusing arms, so we can regulate v_diffuse / v_active ratio
     cdef cython.double [:] slidepauseForward # pause probability for diffusing arms, so we can regulate v_diffuse / v_active ratio
@@ -58,13 +64,13 @@ cdef class smcTranslocatorDirectional(object):
 
     cdef int maxss
     cdef int curss
-    cdef cython.long [:] ssarray  
-    
+    cdef cython.long [:] ssarray
+
     cdef cython.double FULL_LOOP_ENT
     cdef cython.double loop_prefact
     cdef cython.double SLIDE_PAUSEP
- 
-    
+
+
     def __init__(self, emissionProb, deathProb, stallProbLeft, stallProbRight, pauseProb, stallFalloffProb,  numSmc, onesided, paired=0, slide=0, slidepauseForward=0,slidepauseBackward=0, switch=0, pushing=0, belt_on=0, belt_off=0, loop_prefactor=1.5, FULL_LOOP_ENTROPY=1,SLIDE_PAUSEPROB=0.9):
         #FULL_LOOP_ENTROPY should be 1 for entropy
         #for diffusive belt_off should be 1, belt_on=0
@@ -73,9 +79,9 @@ cdef class smcTranslocatorDirectional(object):
         #onesided is array with length of nr SMCs
         emissionProb[0] = 0
         emissionProb[len(emissionProb)-1] = 0
-        emissionProb[stallProbLeft > 0.9] = 0        
-        emissionProb[stallProbRight > 0.9] = 0        
-        
+        emissionProb[stallProbLeft > 0.9] = 0
+        emissionProb[stallProbRight > 0.9] = 0
+
         self.N = len(emissionProb)
         self.M = numSmc
         self.emission = emissionProb
@@ -103,7 +109,7 @@ cdef class smcTranslocatorDirectional(object):
         self.slide=slide
         self.pushing=pushing
         self.belt_attached=np.ones(self.M, int)
-        
+
         self.FULL_LOOP_ENT=FULL_LOOP_ENTROPY
         self.loop_prefact=loop_prefactor
         self.SLIDE_PAUSEP=SLIDE_PAUSEPROB
@@ -145,7 +151,7 @@ cdef class smcTranslocatorDirectional(object):
                 self.belt_off_rate_original[i] = belt_off
         else:
             self.belt_off_rate=belt_off
-            self.belt_off_rate_original = belt_off # 
+            self.belt_off_rate_original = belt_off #
 
         self.inactive_side= np.zeros(self.M,int)
 
@@ -154,22 +160,22 @@ cdef class smcTranslocatorDirectional(object):
 
 
     cdef birth(self, cython.int ind):
-        cdef int pos,i 
-  
+        cdef int pos,i
+
         while True:
             pos = self.getss()
             if pos >= self.N - 1:
                 print "bad value", pos, self.cumEmission[len(self.cumEmission)-1]
-                continue 
+                continue
             if pos <= 0:
                 print "bad value", pos, self.cumEmission[0]
-                continue  
-            
+                continue
+
             if self.occupied[pos] == 1:
                 continue
             if self.occupied[pos+1] == 1:
                 continue
-            
+
             #want to avoid placing SMCs across chain breaks, so prohibit landing on stall sites
             if self.stallLeft[pos]==1.: # hmm. I think this works in cython...
                 continue
@@ -179,13 +185,13 @@ cdef class smcTranslocatorDirectional(object):
             self.SMCs1[ind] = pos
             self.SMCs2[ind] = pos+1 #don't let smcs start on single binding site
             if self.paired:
-                self.SMCs3[ind]= pos + np.random.randint(0,2) #just put the center site on one of those two, don't allow shrinking 
+                self.SMCs3[ind]= pos + np.random.randint(0,2) #just put the center site on one of those two, don't allow shrinking
             self.occupied[pos] = 1
             self.occupied[pos+1] = 1
 
             #this won't be necessary if I add stochasticity to stepping.
             #if (pos < (self.N - 3)) and (self.occupied[pos+1] == 0):
-            #    if randnum() > 0.5:                  
+            #    if randnum() > 0.5:
             #        self.SMCs2[ind] = pos + 2
             #        self.occupied[pos+2] = 1
             #        self.occupied[pos+1] = 0
@@ -232,22 +238,22 @@ cdef class smcTranslocatorDirectional(object):
         self.set_switch_life(ind)
 
     cdef death(self):
-        cdef int i 
-        cdef double falloff1, falloff2 
-        cdef double falloff 
-         
+        cdef int i
+        cdef double falloff1, falloff2
+        cdef double falloff
+
         for i in xrange(self.M):
             if self.stalled1[i] == 0:
                 falloff1 = self.falloff[self.SMCs1[i]]
-            else: 
+            else:
                 falloff1 = self.stallFalloff[self.SMCs1[i]]
             if self.stalled2[i] == 0:
                 falloff2 = self.falloff[self.SMCs2[i]]
             else:
-                falloff2 = self.stallFalloff[self.SMCs2[i]]              
-            
+                falloff2 = self.stallFalloff[self.SMCs2[i]]
+
             falloff = max(falloff1, falloff2)
-            if randnum() < falloff:                 
+            if randnum() < falloff:
                 self.occupied[self.SMCs1[i]] = 0
                 self.occupied[self.SMCs2[i]] = 0
                 if self.paired:
@@ -255,36 +261,36 @@ cdef class smcTranslocatorDirectional(object):
                 self.stalled1[i] = 0
                 self.stalled2[i] = 0
                 self.birth(i)
-    
+
     cdef int getss(self):
-    
+
         if self.curss >= self.maxss - 1:
             foundArray = np.array(np.searchsorted(self.cumEmission, np.random.random(self.maxss)), dtype = np.long)
             self.ssarray = foundArray
             #print np.array(self.ssarray).min(), np.array(self.ssarray).max()
             self.curss = -1
-        
-        self.curss += 1         
+
+        self.curss += 1
         return self.ssarray[self.curss]
-        
-    
+
+
 
     cdef step(self):
-        cdef int i 
+        cdef int i
         cdef double pause
-        cdef double stall1, stall2 
+        cdef double stall1, stall2
         cdef int cur1
-        cdef int cur2 
+        cdef int cur2
         #cdef int stall_site1, stall_site2
         cdef cython.double rr
         cdef cython.double ratesum
         cdef long pushing_allowed, x
         cdef cython.long [:] y
-        
+
         if self.slide:
             self.entropic_rates() # set the rates taking into account the entropic cost of enlarging loops.
-        
-        for i in range(self.M):            
+
+        for i in range(self.M):
             stall1 = self.stallLeft[self.SMCs1[i]]
             stall2 = self.stallRight[self.SMCs2[i]]
 
@@ -292,14 +298,14 @@ cdef class smcTranslocatorDirectional(object):
             #or simply due to being the inactive side of the extruder
             #stall_site1=0
             #stall_site2=0
-            
-            if randnum() < stall1: 
+
+            if randnum() < stall1:
                 self.stalled1[i] = 1
                 #stall_site1=1 # used for book keeping before I had safety belt and inactive_side variables
                 if self.inactive_side[i]==1:
                     self.belt_off_rate[i] = 0.
                     self.belt_attached[i] = 1
-            if randnum() < stall2: 
+            if randnum() < stall2:
                 self.stalled2[i] = 1
                 #stall_site2=1
                 if self.inactive_side[i]==2:
@@ -307,14 +313,14 @@ cdef class smcTranslocatorDirectional(object):
                     self.belt_attached[i] = 1
 
             #note- smc can already be stalled if it is one-sided
-     
+
             cur1 = self.SMCs1[i]
             cur2 = self.SMCs2[i]
-            
-            if self.stalled1[i] == 0: # not stalled, just go if possible 
+
+            if self.stalled1[i] == 0: # not stalled, just go if possible
                 if self.occupied[cur1-1] == 0:
                     pause1 = self.pause[self.SMCs1[i]]
-                    if randnum() > pause1: 
+                    if randnum() > pause1:
                         self.occupied[cur1-1] = 1
                         self.occupied[cur1] = 0
                         self.SMCs1[i] = cur1 - 1
@@ -335,7 +341,7 @@ cdef class smcTranslocatorDirectional(object):
                             if len(y)>0: # if so...
                                 #I think self.stallLeft[x]<0.99999 should be changed to not stall_site1, or else, maybe stallLeft<1e-8... not sure why I didn't just use stallSite.
                                 #didn't use stall_site, because I didn't want to have to have randnum() < stall.  I want stalled & finite stall prob.
-                                if self.stalled1[y[0]] and (not (self.stallLeft[x]>0.0)) and (not self.belt_attached[y[0]]): #check if stalled (inactive) and not due to stallLeft=1 (not sure what cython does with == for floats), this allows pushing over real stalls with stall prob <1, but i'm currently only using stall to identify inactive sites and the end of the chain. 
+                                if self.stalled1[y[0]] and (not (self.stallLeft[x]>0.0)) and (not self.belt_attached[y[0]]): #check if stalled (inactive) and not due to stallLeft=1 (not sure what cython does with == for floats), this allows pushing over real stalls with stall prob <1, but i'm currently only using stall to identify inactive sites and the end of the chain.
                                     x=x-1 # move on to check next position
                                 else:# smc at x is an active leg ..break
                                     pushing_allowed=0
@@ -350,7 +356,7 @@ cdef class smcTranslocatorDirectional(object):
                                     break
                     if pushing_allowed:
                         #now check if active site makes a step
-                        pause1=self.pause[self.SMCs1[i]] 
+                        pause1=self.pause[self.SMCs1[i]]
                         if randnum() > pause1:
                             #x is now the site just past the last (leftmost) smc in the series of pushed sites
                             self.occupied[x]=1
@@ -365,11 +371,11 @@ cdef class smcTranslocatorDirectional(object):
                                 x=x+1
                             self.occupied[cur1]=0
                             self.SMCs1[i]=cur1-1
-                            
+
 
                         #need to move all those LEFs now...
                 #need to repeat for SMCs2 moving rightward with cur+1, x+1 and x out of bounds when x>=L
- 
+
             elif self.slide and (not self.belt_attached[i]) and (self.inactive_side[i]==1):# and (stall_site1==0): #if stall is not due to a stall site, then it is b/c we are looking at inactive side of LEF
                 #HERE IS WHERE I MAKE CHANGES AND PUT IN slidepauseforward and slidepausebackward
                 #inactive side 1, slide pause forward goes with cur-1, i.e., first if
@@ -407,7 +413,7 @@ cdef class smcTranslocatorDirectional(object):
             if self.stalled2[i] == 0:
                 if self.occupied[cur2 + 1] == 0:
                     pause2 = self.pause[self.SMCs2[i]]
-                    if randnum() > pause2: 
+                    if randnum() > pause2:
                         self.occupied[cur2 + 1] = 1
                         self.occupied[cur2] = 0
                         self.SMCs2[i] = cur2 + 1
@@ -438,23 +444,23 @@ cdef class smcTranslocatorDirectional(object):
                                 else:
                                     pushing_allowed=0
                                     break
-                    if pushing_allowed: 
+                    if pushing_allowed:
                         #now check if active site makes a step
-                        pause2=self.pause[self.SMCs2[i]] 
-                        if randnum() > pause2:            
-                            #x is now the site of the last smc in the chain 
+                        pause2=self.pause[self.SMCs2[i]]
+                        if randnum() > pause2:
+                            #x is now the site of the last smc in the chain
                             self.occupied[x]=1
                             x=x-1
-                            while self.occupied[x] == 1 and not x==cur2: # go through chain, moving SMCs, note that self.occupied does not change except ends                                                                             
-                                y=np.where(np.array(self.SMCs1)==x)[0]                                                         
-                                if len(y)>0:              
-                                    self.SMCs1[y[0]]=x+1     
-                                else:                     
-                                    y=np.where(np.array(self.SMCs2)==x)[0]                                                     
+                            while self.occupied[x] == 1 and not x==cur2: # go through chain, moving SMCs, note that self.occupied does not change except ends
+                                y=np.where(np.array(self.SMCs1)==x)[0]
+                                if len(y)>0:
+                                    self.SMCs1[y[0]]=x+1
+                                else:
+                                    y=np.where(np.array(self.SMCs2)==x)[0]
                                     self.SMCs2[y[0]]=x+1
                                 x=x-1
-                            self.occupied[cur2]=0         
-                            self.SMCs2[i]=cur2+1 
+                            self.occupied[cur2]=0
+                            self.SMCs2[i]=cur2+1
 
             elif self.slide and (not self.belt_attached[i]) and (self.inactive_side[i]==2):# and (stall_site2==0):
                 if (self.occupied[cur2-1]==0) and (self.occupied[cur2+1]==0):
@@ -502,26 +508,26 @@ cdef class smcTranslocatorDirectional(object):
                 if randnum() < self.belt_on_rate[i]:
                     self.belt_attached[i]=1
 
- 
 
-        
+
+
     def steps(self,N):
         cdef int i, slidestep_taken, remaining_steps
         remaining_steps=0
         for i in xrange(N):
             self.death()
             self.step()
-            
+
     def getOccupied(self):
         return np.array(self.occupied)
-    
+
     def getSMCs(self):
         if not self.paired:
             return np.array(self.SMCs1), np.array(self.SMCs2)
         else:
             return np.array(self.SMCs1), np.array(self.SMCs2), np.array(self.SMCs3)
-        
-    
+
+
     ##
     #these next two functions seem to be for updating matrices that keep track of:
     #smc-mediated contacts between two sites and
@@ -565,7 +571,7 @@ cdef class smcTranslocatorDirectional(object):
         i=lefsites[k][0]
         while k < len(lefsites):
             lef_list=[]
-            #need to find which LEF occupies site 
+            #need to find which LEF occupies site
             lef_id=lefsites[k][1]#np.where((left==i))[0]#|(right==i) # actually, this should only catch left sides.
             lef_list.append(lef_id)
             j=k+1
@@ -584,7 +590,7 @@ cdef class smcTranslocatorDirectional(object):
 
                         #also need to add contribution of containing loop.
                     else:
-                        
+
                         lef_list.append(lef_at_j)
                     j+=1 # no more checking j<len since it should always be enclosed by lef_id
 
@@ -607,12 +613,12 @@ cdef class smcTranslocatorDirectional(object):
 
         #not really the entropy - instead, the derivative of entropy
 
-        loop_entropy_forward[loop_len>0]= -1.*self.loop_prefact / loop_len[loop_len>0] 
+        loop_entropy_forward[loop_len>0]= -1.*self.loop_prefact / loop_len[loop_len>0]
         if self.FULL_LOOP_ENT:
             parents = looptools.get_parent_loops(left, right)
             loop_entropy_forward[parents>=0] = loop_entropy_forward[parents>=0] + self.loop_prefact / loop_len[parents[parents>=0]]
         loop_entropy_backward=-1.*loop_entropy_forward
-        
+
         #adjust rates based on loop_entropy
         slidePauseArrayForward=np.zeros(self.M) + 1.-(1.-self.SLIDE_PAUSEP)*np.exp(loop_entropy_forward)
         slidePauseArrayBackward=np.zeros(self.M) + 1.-(1.-self.SLIDE_PAUSEP)*np.exp(loop_entropy_backward)
@@ -621,4 +627,4 @@ cdef class smcTranslocatorDirectional(object):
         #slidePauseSum=slidePauseArrayForward+slidePauseArrayBackward
         #SMCTran
         self.set_slidepause(slidePauseArrayForward, slidePauseArrayBackward)#, slidePauseSum)
-        
+

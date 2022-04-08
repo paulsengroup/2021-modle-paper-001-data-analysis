@@ -1,3 +1,9 @@
+<!--
+Copyright (C) 2022 Roberto Rossini <roberros@uio.no>
+
+SPDX-License-Identifier: MIT
+-->
+
 # 2021-modle-paper-001-data-analysis
 
 ## Benchmarks
