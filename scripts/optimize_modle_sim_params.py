@@ -1,5 +1,9 @@
 #!/usr/bin/env -S python3 -u
 
+# Copyright (C) 2022 Roberto Rossini <roberros@uio.no>
+#
+# SPDX-License-Identifier: MIT
+
 import argparse
 import glob
 import itertools

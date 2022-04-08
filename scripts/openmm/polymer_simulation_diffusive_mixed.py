@@ -1,5 +1,10 @@
 #!/usr/bin/env python3
 
+# Copyright (C) 2020 Edward Banigan, Aafke van den Berg, and Hugo Brandão
+# Copyright (C) 2022 Roberto Rossini <roberros@uio.no>
+#
+# SPDX-License-Identifier: MIT
+
 import argparse
 import csv
 import os
