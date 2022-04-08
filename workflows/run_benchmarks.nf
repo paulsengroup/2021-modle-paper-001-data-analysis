@@ -1,8 +1,7 @@
+#!/usr/bin/env nextflow
 // Copyright (C) 2022 Roberto Rossini <roberros@uio.no>
 //
 // SPDX-License-Identifier: MIT
-
-#!/usr/bin/env nextflow
 
 nextflow.enable.dsl=2
 
