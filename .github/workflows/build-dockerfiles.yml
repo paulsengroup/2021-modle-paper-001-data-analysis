@@ -40,7 +40,7 @@ jobs:
 
       - name: Collect changed files
         id: collect-changed-files
-        uses: tj-actions/changed-files@v18.6
+        uses: tj-actions/changed-files@v23.2
 
       - name: Process changed files
         id: process-changed-files
