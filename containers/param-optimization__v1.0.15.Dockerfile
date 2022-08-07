@@ -32,6 +32,7 @@ RUN apt-get update \
     && pip install bioframe==${BIOFRAME_VER}         \
                    cloudpickle==${CLOUDPICKLE_VER}   \
                    deap==${DEAP_VER}                 \
+                   networkx                          \
                    pandas==${PANDAS_VER}             \
                    pyBigWig==${PYBIGWIG_VER}         \
                    scikit-optimize==${SKOPT_VER}     \
