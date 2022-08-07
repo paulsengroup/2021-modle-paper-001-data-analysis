@@ -3,7 +3,7 @@
 #
 # SPDX-License-Identifier: MIT
 
-FROM ghcr.io/paulsengroup/modle:sha-2867ec7 AS base
+FROM ghcr.io/paulsengroup/modle:sha-ed185da AS base
 
 ARG CONTAINER_VERSION
 ARG CONTAINER_TITLE
