@@ -9,10 +9,12 @@ ARG CONTAINER_VERSION
 ARG CONTAINER_TITLE
 
 ARG BIOFRAME_VER='0.3.*'
+ARG COOLER_VER='0.8.*'
 ARG CLOUDPICKLE_VER='2.0.*'
 ARG DEAP_VER='1.3.*'
 ARG PANDAS_VER='1.4.*'
 ARG PYBIGWIG_VER='0.3.*'
+ARG SKIMAGE_VER='0.19.*'
 ARG SKOPT_VER='0.9.*'
 ARG SCIPY_VER='1.8.*'
 ARG PIP_NO_CACHE_DIR=0
@@ -30,11 +32,13 @@ RUN apt-get update \
                        python3-pkg-resources \
                        python3-pip           \
     && pip install bioframe==${BIOFRAME_VER}         \
+                   cooler==${COOLER_VER}             \
                    cloudpickle==${CLOUDPICKLE_VER}   \
                    deap==${DEAP_VER}                 \
                    networkx                          \
                    pandas==${PANDAS_VER}             \
                    pyBigWig==${PYBIGWIG_VER}         \
+                   scikit-image==${SKIMAGE_VER}      \
                    scikit-optimize==${SKOPT_VER}     \
                    scipy==${SCIPY_VER}               \
     && apt-get remove -y gcc python3-pip \
