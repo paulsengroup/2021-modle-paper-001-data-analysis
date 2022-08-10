@@ -3,7 +3,7 @@
 #
 # SPDX-License-Identifier: MIT
 
-FROM mambaorg/micromamba:0.22.0 AS base
+FROM mambaorg/micromamba:0.25.0 AS base
 
 ARG MAMBA_DOCKERFILE_ACTIVATE=1
 
@@ -17,6 +17,7 @@ RUN if [ -z "$CONTAINER_VERSION" ]; then echo "Missing CONTAINER_VERSION --build
 RUN micromamba install -y \
         -c conda-forge \
         -c bioconda \
+        bioframe \
         "cooltools=$COOLTOOLS_VER" \
 && micromamba clean --all -y
 
@@ -28,7 +29,7 @@ WORKDIR /data
 
 RUN cooltools --help
 RUN cooler --help
-RUN python3 -c "import cooler; import cooltools"
+RUN python3 -c "import cooler; import cooltools; import bioframe;"
 
 LABEL org.opencontainers.image.authors='Roberto Rossini <roberros@uio.no>'
 LABEL org.opencontainers.image.url='https://github.com/paulsengroup/2021-modle-paper-001-data-analysis'
