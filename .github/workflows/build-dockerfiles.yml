@@ -29,6 +29,7 @@ jobs:
       matrix:
         image-name: ["bedtools",
                      "cooltools",
+                     "hicexplorer",
                      "modle-benchmark",
                      "openmm-benchmark",
                      "openmm-helpers",
