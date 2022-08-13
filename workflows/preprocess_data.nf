@@ -5,54 +5,78 @@
 
 nextflow.enable.dsl=2
 
+def compare_basename(f1, f2) { file(f1).getBaseName() <=> file(f2).getBaseName() }
+
 workflow {
-    grch37_bname = "${params.grch37_assembly_name_short}"
-    grch38_bname = "${params.grch38_assembly_name_short}"
 
-    bnames = channel.of(grch37_bname, grch38_bname)
+    genome_assemblies = Channel.fromPath(params.genome_assemblies)
+    assembly_reports = Channel.fromPath(params.assembly_reports)
 
-    assembly_reports = channel.of(file(params.grch37_assembly_report),
-                                  file(params.grch38_assembly_report))
+    bnames = Channel.fromPath(params.assembly_reports)
+                    .map { it = it.getBaseName(); it.takeWhile { it != '_' } }
 
     generate_chrom_sizes(bnames,
-                         assembly_reports)
+                         Channel.fromPath(params.assembly_reports))
 
-    chrom_sizes = generate_chrom_sizes.out.chrom_sizes.toSortedList(
-        { f1, f2 -> file(f1).getBaseName() <=> file(f2).getBaseName() }
-    ).flatten()
-    chrom_sizes_bed = generate_chrom_sizes.out.bed.toSortedList(
-        { f1, f2 -> file(f1).getBaseName() <=> file(f2).getBaseName() }
-    ).flatten()
+    chrom_sizes = generate_chrom_sizes.out.chrom_sizes.collect(sort: { f1, f2 -> compare_basename(f1, f2) })
+    chrom_sizes_bed = generate_chrom_sizes.out.bed.collect(sort: { f1, f2 -> compare_basename(f1, f2) })
 
-    grch37_chrom_sizes = chrom_sizes.first()
-    grch38_chrom_sizes = chrom_sizes.last()
+    grch37_chrom_sizes = generate_chrom_sizes.out.chrom_sizes
+                                             .filter { it.getBaseName().startsWith(params.grch37_assembly_name_short) }
+                                             .first()
+    grch38_chrom_sizes = generate_chrom_sizes.out.chrom_sizes
+                                             .filter { it.getBaseName().startsWith(params.grch38_assembly_name_short) }
+                                             .first()
+    grcm38_chrom_sizes = generate_chrom_sizes.out.chrom_sizes
+                                             .filter { it.getBaseName().startsWith(params.grcm38_assembly_name_short) }
+                                             .first()
 
-    grch38_chrom_sizes_bed = chrom_sizes_bed.last()
+    grch38_chrom_sizes_bed = generate_chrom_sizes.out.bed
+                                                 .filter { it.getBaseName().startsWith(params.grch38_assembly_name_short) }
+                                                 .first()
+    grcm38_chrom_sizes_bed = generate_chrom_sizes.out.bed
+                                                 .filter { it.getBaseName().startsWith(params.grcm38_assembly_name_short) }
+                                                 .first()
 
-    extract_meme_motif_from_zip(file(params.jaspar_2022_core_zip),
-                                params.motif_name)
+    extract_meme_matrix_from_zip(file(params.jaspar_2022_core_zip),
+                                 params.motif_id)
 
-    motif = extract_meme_motif_from_zip.out.meme
-    run_mast("${grch38_bname}_CTCF",
-             file(params.grch38_genome_assembly),
-             motif)
+    run_mast(params.motif_name,
+             genome_assemblies,
+             extract_meme_matrix_from_zip.out.meme.first())
 
-    convert_mast_to_bed(run_mast.out.txt_gz,
-                        grch38_chrom_sizes_bed)
+    convert_mast_to_bed(run_mast.out.txt_gz.collect(sort: { f1, f2 -> compare_basename(f1, f2) }).flatten(),
+                        chrom_sizes_bed.flatten())
 
-    generate_extr_barriers_bed(file(params.convert_chip_to_occupancy_script),
-                               convert_mast_to_bed.out.bed_gz,
+    grch38_mast_bed = convert_mast_to_bed.out.bed_gz
+                                         .filter { it.getBaseName().startsWith(params.grch38_assembly_name_short) }
+                                         .first()
+
+    generate_extr_barriers_bed(grch38_mast_bed,
                                file(params.h1_rad21_chip_fold_change),
                                file(params.h1_ctcf_chip_peaks),
                                file(params.h1_rad21_chip_peaks),
-                               "${grch38_bname}_${params.cell_line_name}_barriers_RAD21_occupancy")
+                               "${params.grch38_assembly_name_short}_${params.cell_line_name}_barriers_RAD21_occupancy")
 
-   fix_mcool(file(params.microc_mcool),
-             params.microc_base_bin_size)
+    fixed_mcools = fix_mcool(Channel.fromPath(params.broken_mcools))
+
+    convert_hic_to_mcool(Channel.fromPath(params.hic_files))
+    rename_chromosomes_mcool(convert_hic_to_mcool.out.mcool)
+
+    geo_tar_matrix_to_mcool(Channel.fromPath(params.geo_tar_matrices),
+                            grch37_chrom_sizes,
+                            20000,
+                            'chr2')
+
+    grch38_genome_assembly = genome_assemblies.filter { it.getBaseName().startsWith(params.grch38_assembly_name_short) }.first()
+    call_compartments(fixed_mcools,
+                      grch38_genome_assembly,
+                      grch38_chrom_sizes_bed,
+                      250000)
 }
 
 process generate_chrom_sizes {
-    publishDir "${params.output_dir}", mode: 'copy'
+    publishDir "${params.output_dir}/chrom_sizes", mode: 'copy'
 
     label 'process_short'
 
@@ -83,37 +107,37 @@ process generate_chrom_sizes {
 }
 
 process run_mast {
-    publishDir "${params.output_dir}", mode: 'copy'
+    publishDir "${params.output_dir}/extrusion_barriers", mode: 'copy'
 
     input:
-        val bname
+        val motif_name
         path genome_assembly_fa
         path motif_meme
 
     output:
-        path "${bname}_mast_hits.txt.gz", emit: txt_gz
+        path "*_mast_hits.txt.gz", emit: txt_gz
 
     shell:
-        out = "${bname}_mast_hits.txt.gz"
-        """
-        set -e
+        '''
         set -u
         set -o pipefail
 
+        outname="$(echo '!{genome_assembly_fa}' | cut -d '_' -f 1)_!{motif_name}_mast_hits.txt.gz"
+
+        trap 'rm -f ga.tmp.fa' EXIT
+
         # MAST does not like gzipped files nor FIFOs, so we have to actually write the inflated reference to disk
-        gzip -dc "$genome_assembly_fa" > ga.tmp.fa
+        gzip -dc '!{genome_assembly_fa}' > ga.tmp.fa
 
-        mast -hit_list     \
-             "$motif_meme" \
-             ga.tmp.fa     |
-        gzip -9 > "$out"
-
-        rm -f ga.tmp.fa
-        """
+        mast -hit_list       \
+             '!{motif_meme}' \
+             ga.tmp.fa       |
+        gzip -9 > "$outname"
+        '''
 }
 
 process convert_mast_to_bed {
-    publishDir "${params.output_dir}", mode: 'copy'
+    publishDir "${params.output_dir}/extrusion_barriers", mode: 'copy'
 
     label 'process_short'
 
@@ -149,7 +173,7 @@ process convert_mast_to_bed {
         '''
 }
 
-process extract_meme_motif_from_zip {
+process extract_meme_matrix_from_zip {
     publishDir "${params.output_dir}", mode: 'copy'
 
     label 'process_short'
@@ -175,12 +199,11 @@ process extract_meme_motif_from_zip {
 }
 
 process generate_extr_barriers_bed {
-    publishDir "${params.output_dir}", mode: 'copy'
+    publishDir "${params.output_dir}/extrusion_barriers", mode: 'copy'
 
     label 'process_short'
 
     input:
-        path main_script
         path ctcf_motifs_bed
         path rad21_fold_change_bwig
         path ctcf_chip_peaks_bed
@@ -193,19 +216,20 @@ process generate_extr_barriers_bed {
     shell:
         out="${bname}.bed.gz"
         '''
-        python3 '!{main_script}' \
+        '!{params.script_dir}/convert_chip_signal_to_occupancy.py'  \
                 --chip-seq-bigwig '!{rad21_fold_change_bwig}'       \
                 --motifs-bed '!{ctcf_motifs_bed}'                   \
                 --regions-of-interest-bed '!{ctcf_chip_peaks_bed}'  \
                                           '!{rad21_chip_peaks_bed}' |
-                gzip -9 > '!{bname}.bed.gz'
+                gzip -9 > '!{out}'
         '''
 }
 
 process convert_hic_to_mcool {
-    publishDir "${params.output_dir}", mode: 'copy'
+    // publishDir "${params.output_dir}/mcools", mode: 'copy'
 
     label 'process_very_long'
+    label 'process_medium_memory'
 
     input:
         path hic
@@ -228,49 +252,11 @@ process convert_hic_to_mcool {
 }
 
 process rename_chromosomes_mcool {
-    label 'process_short'
-
-    input:
-        path mcool
-
-    output:
-        path "*.mcool.tmp", emit: mcool
-
-    shell:
-        '''
-        #!/usr/bin/env python3
-
-        import os
-        import re
-        import shutil
-        import sys
-
-        import cooler
-        pattern = re.compile(r"^chrom|chr", re.IGNORECASE)
-
-        input_mcool = "!{mcool}"
-        output_mcool = os.path.basename(input_mcool.strip()) + ".tmp"
-        shutil.copyfile(input_mcool, output_mcool)
-
-        for path in cooler.fileops.list_coolers(input_mcool):
-            c = cooler.Cooler(f"{output_mcool}::{path}")
-            mappings = {chrom: "chr" + pattern.sub("", chrom, 1) for chrom in c.chromnames}
-            cooler.rename_chroms(c, mappings)
-        '''
-}
-
-process balance_mcool {
-    publishDir "${params.output_dir}", mode: 'copy',
+    publishDir "${params.output_dir}/mcools", mode: 'copy',
                                        saveAs: { fname ->
                                                  file(fname).getBaseName() // Trim .new
                                                }
-    label 'process_long'
-    label 'process_high'
-
-    memory {
-        // 750 MB/core
-        750e6 * task.cpus * task.attempt as Long
-    }
+    label 'process_short'
 
     input:
         path mcool
@@ -280,27 +266,17 @@ process balance_mcool {
 
     shell:
         '''
-        mapfile -t dsets < \
-             <(cooler info '!{mcool}' |&
-               grep 'KeyError' |
-               grep -o '/resolutions/[[:digit:]]\\+')
-
-        mcool_out="$(basename '!{mcool}' .tmp).new"
-        cp '!{mcool}' "$mcool_out"
-        for dset in "${dsets[@]}"; do
-            cooler balance -p !{task.cpus} "${mcool_out}::$dset"
-        done
+        '!{params.script_dir}/normalize_cooler_chrom_names.py' '!{mcool}'
         '''
 }
 
 process fix_mcool {
-    publishDir "${params.output_dir}", mode: 'copy'
+    publishDir "${params.output_dir}/mcools", mode: 'copy'
     label 'process_high'
     label 'process_memory_high'
 
     input:
         path mcool
-        val bin_size
 
     output:
         path "*_fixed.mcool", emit: mcool
@@ -308,12 +284,100 @@ process fix_mcool {
     shell:
         outprefix="${mcool.baseName}"
         '''
+        # Extract mcool datasets. Datasets are sorted by resolution (ascending)
+        mapfile -t dsets < \
+                <(cooler info '!{mcool}' |&
+                  grep 'KeyError' |
+                  grep -o '/resolutions/[[:digit:]]\\+')
+
         cooler zoomify -p !{task.cpus}                     \
                        -r 5000N                            \
                        --balance                           \
                        --balance-args '-p !{task.cpus}'    \
                        -o '!{outprefix}_fixed.mcool'       \
-                       '!{mcool}::/resolutions/!{bin_size}'
+                       "!{mcool}::${dsets[0]}"
         '''
 
+}
+
+process geo_tar_matrix_to_mcool {
+    publishDir "${params.output_dir}/mcools", mode: 'copy'
+    input:
+        path tar
+        path chrom_sizes
+        val bin_size
+        val chrom_name
+
+    output:
+        path "*.mcool", emit: mcool
+
+    shell:
+        '''
+        tar -xf '!{tar}'
+
+        input_matrices=( $(find . -type f -name '*__20kb__raw.matrix.gz') )
+
+        for matrix in "${input_matrices[@]}"; do
+            outprefix="${matrix%__20kb__raw.matrix.gz}"
+            echo "Processing \\"$outprefix\\"..."
+
+            '!{params.script_dir}/convert_2d_text_matrix_to_cool.py'  \
+                    --input-matrices "$matrix"                        \
+                    --output-matrices "$outprefix.cool"               \
+                    --chrom-sizes '!{chrom_sizes}'                    \
+                    --resolution '!{bin_size}'                        \
+                    --chrom-names '!{chrom_name}'
+
+            cooler zoomify -p '!{task.cpus}'                           \
+                           --balance                                   \
+                           --balance-args='-p !{task.cpus} --cis-only' \
+                           "$outprefix.cool"
+            mv "$outprefix.mcool" .
+        done
+        '''
+}
+
+process call_compartments {
+    publishDir "${params.output_dir}/compartments", mode: 'copy'
+
+    input:
+        path mcool
+        path ref_genome
+        path chrom_sizes_bed
+        val resolution
+
+    output:
+        path "*.vecs.tsv", emit: eigvect_txt
+        path "*.lam.txt", emit: eigval_txt
+        path "*.bw", emit: bw
+
+    shell:
+        '''
+        trap 'rm -f ref.fna gc.bed' EXIT
+
+        cooler='!{mcool}::/resolutions/!{resolution}'
+
+        zcat '!{ref_genome}' > ref.fna
+        cooler dump -t bins "$cooler" > bins.bed
+
+        mkfifo tmp1.fifo tmp2.fifo
+
+        # - Map chromosome names to chromosome ids (e.g. chr1 -> NC_000001.11)
+        awk -F $'\t' 'BEGIN { OFS=FS } NR==FNR{chroms[$1]=$4;next} { print chroms[$1],$2,$3 }' \
+            '!{chrom_sizes_bed}'             \
+            <(cooler dump -t bins "$cooler") > tmp1.fifo &
+
+        '!{params.script_dir}/compute_binned_gc_content.py' tmp1.fifo \
+                                              ref.fna > tmp2.fifo &
+
+        # - Map chromosome ids to chromosome names (e.g. NC_000001.11 -> chr1)
+        awk -F $'\t' 'BEGIN { OFS=FS } NR==FNR{chroms[$4]=$1;next} { print chroms[$1],$2,$3,$4,0,$6 }' \
+            '!{chrom_sizes_bed}'  \
+            tmp2.fifo > gc.bed
+
+        cooltools eigs-cis --phasing-track gc.bed             \
+                           --bigwig                           \
+                           -o "$(basename '!{mcool}' .mcool)" \
+                           "$cooler"
+        '''
 }
