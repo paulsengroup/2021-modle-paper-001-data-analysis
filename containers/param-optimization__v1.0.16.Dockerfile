@@ -3,20 +3,20 @@
 #
 # SPDX-License-Identifier: MIT
 
-FROM ghcr.io/paulsengroup/modle:sha-4a6c6e7 AS base
+FROM ghcr.io/paulsengroup/modle:1.0.0-rc.7 AS base
 
 ARG CONTAINER_VERSION
 ARG CONTAINER_TITLE
 
 ARG BIOFRAME_VER='0.3.*'
 ARG COOLER_VER='0.8.*'
-ARG CLOUDPICKLE_VER='2.0.*'
+ARG CLOUDPICKLE_VER='2.1.*'
 ARG DEAP_VER='1.3.*'
 ARG PANDAS_VER='1.4.*'
 ARG PYBIGWIG_VER='0.3.*'
 ARG SKIMAGE_VER='0.19.*'
 ARG SKOPT_VER='0.9.*'
-ARG SCIPY_VER='1.8.*'
+ARG SCIPY_VER='1.9.*'
 ARG PIP_NO_CACHE_DIR=0
 
 ENV SHELL=/usr/bin/bash
