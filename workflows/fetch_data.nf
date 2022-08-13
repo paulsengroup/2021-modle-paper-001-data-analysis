@@ -6,11 +6,11 @@
 nextflow.enable.dsl=2
 
 // For some reason importing this function from utils.nfm causes an error like:
-//   Missing process or function with name 'normalize_path_name' -- Did you mean 'normalize_path_name' instead?
+// Missing process or function with name 'normalize_path_name' -- Did you mean 'normalize_path_name' instead?
 
 // Remove problematic characters from file names.
 def normalize_path_name(old_path) {
-   old_path.replaceAll(/[^A-Za-z0-9._-]/, '_')
+    old_path.replaceAll(/[^A-Za-z0-9._-]/, '_')
 }
 
 workflow {
@@ -20,10 +20,9 @@ workflow {
     // Read download_list file line by line and store the file content in the urls list
     Channel.fromPath(dls)
             .splitText()
-            .map {
-                 // Lines are formatted like "url\tshort_name"
-                 toks = it.trim().split('\t')
-                 file(toks[0])
+            .map { // Lines are formatted like "url\tshort_name"
+                   toks = it.trim().split('\t')
+                   file(toks[0])
                  }
             .set { files }
 
