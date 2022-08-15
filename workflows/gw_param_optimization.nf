@@ -27,25 +27,24 @@ workflow {
                                  file(params.output_prefix2))
     starting_points = Channel.of(params.starting_point1,
                                  params.starting_point2)
-    run_optimization(file(params.optimize_modle_sim_script),
-                     param_files,
-                     output_prefixes,
-                     file(params.chrom_sizes_file),
-                     file(params.extr_barrier_file),
-                     generate_training_and_test_sites.out.training_set,
-                     generate_training_and_test_sites.out.validation_set,
-                     transform_reference_matrix.out.transformed_matrix,
-                     params.excluded_chroms,
-                     starting_points,
-                     params.gaussian_sigma_tgt,
-                     params.gaussian_sigma_multiplier_tgt,
-                     params.discretization_thresh_tgt,
-                     params.diagonal_width,
-                     params.num_calls,
-                     params.num_random_starts,
-                     params.optimization_method,
-                     params.seed,
-                     params.scoring_method)
+    run_gw_optimization(param_files,
+                        output_prefixes,
+                        file(params.chrom_sizes_file),
+                        file(params.extr_barrier_file),
+                        generate_training_and_test_sites.out.training_set,
+                        generate_training_and_test_sites.out.validation_set,
+                        transform_reference_matrix.out.transformed_matrix.first(),
+                        params.excluded_chroms,
+                        starting_points,
+                        params.gaussian_sigma_tgt,
+                        params.gaussian_sigma_multiplier_tgt,
+                        params.discretization_thresh_tgt,
+                        params.diagonal_width,
+                        params.num_calls,
+                        params.num_random_starts,
+                        params.optimization_method,
+                        params.seed,
+                        params.scoring_method)
 }
 
 process generate_training_and_test_sites {
@@ -105,7 +104,7 @@ process transform_reference_matrix {
         out = "${reference_matrix.baseName}_${bin_size}_transformed.cool"
         """
         modle_tools transform -i "$reference_matrix"                               \
-                              --bin-size $bin_size                                 \
+                              --resolution $bin_size                               \
                               -w $diagonal_width                                   \
                               --method difference_of_gaussians                     \
                               --gaussian-blur-sigma $gaussian_blur_sigma           \
@@ -116,14 +115,13 @@ process transform_reference_matrix {
         """
 }
 
-process run_optimization {
-    publishDir "${params.output_dir}/optimization", mode: 'copy'
+process run_gw_optimization {
+    publishDir "${params.output_dir}/gw_optimization", mode: 'copy'
 
     label 'process_very_high'
     label 'process_very_long'
 
     input:
-        path main_script
         path param_space_file
         val output_prefix
         path chrom_sizes
@@ -152,7 +150,7 @@ process run_optimization {
     shell:
         out="${output_prefix.fileName}"
         '''
-        ./'!{main_script}' optimize \
+        python3 '!{params.script_dir}/optimize_modle_sim_params.py' optimize              \
              --param-space-tsv="!{param_space_file}"                        \
              --output-prefix="!{out}"                                       \
              --chrom-sizes="!{chrom_sizes}"                                 \
@@ -212,22 +210,5 @@ process run_stripenn {
         mv tmpout/result_filtered.tsv "${out_prefix}_filtered.tsv"
         mv tmpout/result_unfiltered.tsv "${out_prefix}_unfiltered.tsv"
         mv tmpout/stripenn.log "${out_prefix}_stripenn.log"
-        '''
-}
-
-process cooler_zoomify {
-    publishDir "${params.output_dir}/mcools", mode: 'copy'
-
-    input:
-        path cool
-
-    output:
-        path "*.mcool", emit: mcool
-
-    shell:
-        '''
-        cooler zoomify -r 5000N        \
-                       -p !{task.cpus} \
-                       '!{cool}'
         '''
 }

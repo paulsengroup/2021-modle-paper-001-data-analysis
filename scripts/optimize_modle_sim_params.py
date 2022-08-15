@@ -78,7 +78,7 @@ def generate_optimization_dimensions(params, x0):
     return tuple(dimensions)
 
 
-def extract_bin_size_from_params(param_df, key="--bin-size"):
+def extract_bin_size_from_params(param_df, key="--resolution"):
     return int(param_df.loc[key, "start"])
 
 
@@ -185,7 +185,7 @@ def run_modle_tools_transform(input_name, sigma, sigma_multiplier, cutoff, **kwa
     output_name = f"{output_name}_transformed.cool"
     cmd = ["modle_tools", "transform",
            "-i", str(input_name),
-           "--bin-size", str(kwargs.get("bin_size")),
+           "--resolution", str(kwargs.get("bin_size")),
            "-m", "difference_of_gaussians",
            "--gaussian-blur-sigma", str(sigma),
            "--gaussian-blur-multiplier", str(sigma_multiplier),
@@ -203,7 +203,7 @@ def run_modle_tools_transform(input_name, sigma, sigma_multiplier, cutoff, **kwa
 def run_modle_tools_eval(input_name, **kwargs):
     cmd = ["modle_tools", "eval",
            "-i", str(input_name),
-           "--bin-size", str(kwargs.get("bin_size")),
+           "--resolution", str(kwargs.get("bin_size")),
            "--reference-matrix", str(kwargs.get("transformed_reference_matrix")),
            "-o", str(kwargs.get("tmp_output_prefix")),
            "--metric", kwargs.get("modle_tools_eval_metric"),

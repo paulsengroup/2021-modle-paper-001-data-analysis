@@ -45,7 +45,7 @@ Both configs are specific to the machine and cluster we used during workflow dev
 nextflow run -c configs/fetch_data.config -c configs/base_hovig.config workflows/fetch_data.nf -resume
 nextflow run -c configs/preprocess_data.config -c configs/base_hovig.config workflows/preprocess_data.nf -resume
 nextflow run -c configs/make_heatmaps_comparison.config -c configs/base_hovig.config workflows/make_heatmaps_comparison.nf -resume
-nextflow run -c configs/optimize_modle_sim_params.config -c configs/base_hovig.config workflows/optimize_modle_sim_params.nf -resume
+nextflow run -c configs/gw_param_optimization.config -c configs/base_hovig.config workflows/gw_param_optimization.nf -resume
 nextflow run --max_memory=400.G --max_cpus=52 --max_time=336.h --project=na -c configs/run_benchmarks.config -c configs/base_hovig.config workflows/run_benchmarks.nf -resume
 ```
 
@@ -59,7 +59,7 @@ nextflow run --max_cpus=52 --max_memory=400.G --max_time=336.h --project="${SLUR
 nextflow run --max_cpus=52 --max_memory=400.G --max_time=336.h --project="${SLURM_PROJECT_ID-changeme}" \
              -c configs/make_heatmaps_comparison.config -c configs/base_saga.config workflows/make_heatmaps_comparison.nf -resume
 nextflow run --max_cpus=52 --max_memory=400.G --max_time=336.h --project="${SLURM_PROJECT_ID-changeme}" \
-             -c configs/optimize_modle_sim_params.config -c configs/base_saga.config workflows/optimize_modle_sim_params.nf -resume
+             -c configs/gw_param_optimization.config -c configs/base_saga.config workflows/gw_param_optimization.nf -resume
 nextflow run --max_cpus=52 --max_memory=400.G --max_time=336.h --project="${SLURM_PROJECT_ID-changeme}" \
              -c configs/run_benchmarks.config -c configs/base_saga.config workflows/run_benchmarks.nf -resume
 ```
