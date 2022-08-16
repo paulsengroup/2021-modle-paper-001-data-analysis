@@ -249,7 +249,7 @@ process convert_hic_to_mcool {
 }
 
 process balance_mcool {
-    label 'process_long'
+    label 'process_very_long'
     label 'process_high'
 
     memory {
