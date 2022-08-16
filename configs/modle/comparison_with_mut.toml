@@ -1,0 +1,9 @@
+# Copyright (C) 2022 Roberto Rossini <roberros@uio.no>
+#
+# SPDX-License-Identifier: MIT
+
+[simulate]
+bin-size=5000
+target-contact-density=20.0
+lefs-per-mbp=20
+sigma=1500

@@ -45,6 +45,7 @@ Both configs are specific to the machine and cluster we used during workflow dev
 nextflow run -c configs/fetch_data.config -c configs/base_hovig.config workflows/fetch_data.nf -resume
 nextflow run -c configs/preprocess_data.config -c configs/base_hovig.config workflows/preprocess_data.nf -resume
 nextflow run -c configs/heatmap_comparison_pt1.config -c configs/base_hovig.config workflows/heatmap_comparison_pt1.nf -resume
+nextflow run -c configs/comparison_with_mut.config -c configs/base_hovig.config workflows/comparison_with_mut.nf -resume
 nextflow run -c configs/gw_param_optimization.config -c configs/base_hovig.config workflows/gw_param_optimization.nf -resume
 nextflow run --max_memory=400.G --max_cpus=52 --max_time=336.h --project=na -c configs/run_benchmarks.config -c configs/base_hovig.config workflows/run_benchmarks.nf -resume
 ```
@@ -58,6 +59,8 @@ nextflow run --max_cpus=52 --max_memory=400.G --max_time=336.h --project="${SLUR
              -c configs/preprocess_data.config -c configs/base_saga.config workflows/preprocess_data.nf -resume
 nextflow run --max_cpus=52 --max_memory=400.G --max_time=336.h --project="${SLURM_PROJECT_ID-changeme}" \
              -c configs/heatmap_comparison_pt1.config -c configs/base_saga.config workflows/heatmap_comparison_pt1.nf -resume
+nextflow run --max_cpus=52 --max_memory=400.G --max_time=336.h --project="${SLURM_PROJECT_ID-changeme}" \
+             -c configs/comparison_with_mut.config -c configs/base_saga.config workflows/comparison_with_mut.nf -resume
 nextflow run --max_cpus=52 --max_memory=400.G --max_time=336.h --project="${SLURM_PROJECT_ID-changeme}" \
              -c configs/gw_param_optimization.config -c configs/base_saga.config workflows/gw_param_optimization.nf -resume
 nextflow run --max_cpus=52 --max_memory=400.G --max_time=336.h --project="${SLURM_PROJECT_ID-changeme}" \
