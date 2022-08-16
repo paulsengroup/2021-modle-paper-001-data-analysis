@@ -60,11 +60,10 @@ workflow {
 
     fixed_mcools = fix_mcool(Channel.fromPath(params.broken_mcools))
 
-    convert_hic_to_mcool(Channel.fromPath(params.hic_files))
-    rename_chromosomes_mcool(convert_hic_to_mcool.out.mcool)
+    convert_hic_to_mcool(Channel.fromPath(params.hic_files)) | balance_mcool | rename_chromosomes_mcool
 
     geo_tar_matrix_to_mcool(Channel.fromPath(params.geo_tar_matrices),
-                            grch37_chrom_sizes,
+                            grcm38_chrom_sizes,
                             20000,
                             'chr2')
 
@@ -226,8 +225,6 @@ process generate_extr_barriers_bed {
 }
 
 process convert_hic_to_mcool {
-    // publishDir "${params.output_dir}/mcools", mode: 'copy'
-
     label 'process_very_long'
     label 'process_medium_memory'
 
@@ -238,7 +235,7 @@ process convert_hic_to_mcool {
         path "*.mcool", emit: mcool
 
     shell:
-        out = "${hic.baseName}.mcool"
+        out = "${hic.baseName}.from_hic.mcool"
         '''
         set -e
         set -u
@@ -251,10 +248,42 @@ process convert_hic_to_mcool {
         '''
 }
 
+process balance_mcool {
+    label 'process_long'
+    label 'process_high'
+
+    memory {
+        // 750 MB/core
+        750e6 * task.cpus * task.attempt as Long
+    }
+
+    input:
+        path mcool
+
+    output:
+        path "*.balanced.mcool", emit: mcool
+
+    shell:
+        outname="${mcool.baseName}.balanced.mcool"
+        '''
+        set -o pipefail
+
+        mapfile -t dsets < \
+             <(cooler info '!{mcool}' |&
+               grep 'KeyError' |
+               grep -o '/resolutions/[[:digit:]]\\+')
+        cp '!{mcool}' '!{outname}'
+        for dset in "${dsets[@]}"; do
+            cooler balance -p !{task.cpus} "!{outname}::$dset"
+        done
+
+        '''
+}
+
 process rename_chromosomes_mcool {
     publishDir "${params.output_dir}/mcools", mode: 'copy',
                                        saveAs: { fname ->
-                                                 file(fname).getBaseName() // Trim .new
+                                                 file(fname).getBaseName()
                                                }
     label 'process_short'
 
@@ -262,11 +291,13 @@ process rename_chromosomes_mcool {
         path mcool
 
     output:
-        path "*.mcool.new", emit: mcool
+        path "*renamed", emit: mcool
 
     shell:
+        outname="${mcool.simpleName}.mcool.renamed"
         '''
         '!{params.script_dir}/normalize_cooler_chrom_names.py' '!{mcool}'
+        mv '!{mcool}.new' '!{outname}'
         '''
 }
 

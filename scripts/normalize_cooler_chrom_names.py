@@ -31,8 +31,11 @@ if __name__ == "__main__":
     pattern = re.compile(r"^chrom|chr", re.IGNORECASE)
 
     for input_mcool in args["coolers"]:
-        output_mcool = os.path.basename(input_mcool.strip()) + ".new"
-        shutil.copyfile(input_mcool, output_mcool)
+        if args["inplace"]:
+            output_mcool = input_mcool
+        else:
+            output_mcool = os.path.basename(input_mcool.strip()) + ".new"
+            shutil.copyfile(input_mcool, output_mcool)
 
         for path in cooler.fileops.list_coolers(input_mcool):
             c = cooler.Cooler(f"{output_mcool}::{path}")
