@@ -183,7 +183,7 @@ process generate_mut_barrier_annotation {
         outname="${annotation.simpleName}_${rearrangements.simpleName}.bed.gz"
         '''
         set -o pipefail
-        
+
         outname="$(echo '!{outname}' | sed 's/_wt//')"
 
         '!{params.script_dir}/rearrange_bed_intervals.py' '!{annotation}' '!{rearrangements}' |
@@ -201,7 +201,7 @@ process run_modle_sim {
         path chrom_sizes
         path extr_barriers
         path regions_of_interest
-        
+
 
     output:
         path "*.cool", emit: cool
@@ -216,21 +216,21 @@ process run_modle_sim {
                   -t !{task.cpus}                            \
                   -o '!{out_prefix}'
         '''
-        
+
 
 }
 
 process cooler_zoomify {
     publishDir "${params.output_dir}/mcools", mode: 'copy'
-    
+
     label 'process_medium'
-    
+
     input:
         path cool
-        
+
     output:
         path "*.mcool", emit: mcool
-        
+
     shell:
         '''
         cooler zoomify -p !{task.cpus} -r N '!{cool}'
