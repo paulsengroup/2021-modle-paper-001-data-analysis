@@ -3,8 +3,6 @@
 //
 // SPDX-License-Identifier: MIT
 
-#!/usr/bin/env nextflow
-
 nextflow.enable.dsl=2
 
 workflow {
@@ -25,8 +23,7 @@ workflow {
                     }
                 .set { chrom_ranges }
 
-        run_openmm(file(params.run_openmm_script),
-                   chrom_ranges.name,
+        run_openmm(chrom_ranges.name,
                    chrom_ranges.size,
                    chrom_ranges.start,
                    file(params.extr_barriers),
@@ -34,26 +31,19 @@ workflow {
                    params.md_lef_processivity,
                    params.md_lef_separation)
 
-        openmm_to_cool(file(params.openmm_to_cool_script),
-                       run_openmm.out.tar.collect(),
+        openmm_to_cool(run_openmm.out.tar.collect(),
                        file(params.chrom_sizes),
                        run_openmm.out.chrom_name.collect(),
                        run_openmm.out.offset.collect(),
                        params.monomer_size,
                        params.bin_size)
 
-        modle_configs = Channel.of(file(params.modle_config_tad_plus_loop),
-                                   file(params.modle_config_tad_only),
-                                   file(params.modle_config_loop_only),
-                                   file(params.modle_config_ctcf_kd),
-                                   file(params.modle_config_wapl_kd))
-        run_modle(modle_configs,
+        run_modle(Channel.fromPath(params.modle_config),
                   file(params.chrom_sizes),
                   file(params.extr_barriers))
 
         coolers0 = run_modle.out.cool.mix(openmm_to_cool.out.cool)
-        subsample_contacts(file(params.subsample_contacts_script),
-                           file(params.microc_cool),
+        subsample_contacts(file(params.microc_cool),
                            coolers0,
                            file(params.regions_of_interest),
                            params.bin_size,
@@ -121,8 +111,7 @@ workflow {
                                 file(params.regions_of_interest),
                                 run_stripenn.out.filtered)
 
-        dump_pixels(file(params.dump_pixels_script),
-                    Channel.empty().concat(coolers2.openmm,
+        dump_pixels(Channel.empty().concat(coolers2.openmm,
                                            coolers2.modle,
                                            coolers2.openmm),
                     Channel.empty().concat(coolers2.microc,
@@ -201,7 +190,6 @@ process run_openmm {
     label 'process_long'
 
     input:
-        path main_script
         val chrom_name
         val chrom_size
         val offset
@@ -224,7 +212,8 @@ process run_openmm {
             'BEGIN{ OFS=FS } { if ($1==name && $2>=offset) { print $1,$2-offset,$3-offset,$4,$5,$6 } }' \
             <(zcat !{extr_barriers}) > tmp/barriers.bed
 
-        python '!{main_script}' --gpu                 \
+        '!{params.script_dir}/openmm/polymer_simulation_diffusive_mixed.py' \
+            --gpu                                     \
             --output-folder !{chrom_name}             \
             --extrusion-barrier-bed tmp/barriers.bed  \
             --monomer-size-bp !{monomer_size}         \
@@ -243,7 +232,6 @@ process openmm_to_cool {
     label 'process_medium'
 
     input:
-        path main_script
         path openmm_tars
         path chrom_sizes
         val chrom_names
@@ -272,7 +260,7 @@ process openmm_to_cool {
         offsets=( $(echo '!{offsets}' | tr '[],' ' ') )
         out_name='GRCh38_H1_openmm_heatmaps_comparison.cool'
 
-        python '!{main_script}'                 \
+        '!{params.script_dir}/openmm/generate_contact_matrix.py' \
             --input-folders ${input_folders[@]} \
             --output-name "${out_name}.tmp"     \
             --chrom-sizes '!{chrom_sizes}'      \
@@ -298,7 +286,6 @@ process subsample_contacts {
     label 'process_medium'
 
     input:
-        path script
         path reference
         path target
         path chrom_ranges
@@ -313,7 +300,7 @@ process subsample_contacts {
         out="$(basename '!{target}' .mcool)"
         out="$(basename "$out" .cool)_subsampled.cool"
 
-        python '!{script}' \
+        '!{params.script_dir}/subsample_contact_matrix.py' \
                 --ref-matrix '!{reference}'          \
                 --tgt-matrix '!{target}'             \
                 --bin-size '!{bin_size}'             \
@@ -365,7 +352,7 @@ process compute_diff_of_gaussian {
         modle_tools transform                               \
                     -i '!{cool}'                            \
                     -o "$outname"                           \
-                    --bin-size '!{bin_size}'                \
+                    --resolution '!{bin_size}'              \
                     -m difference_of_gaussians              \
                     --binary-discretization-value !{cutoff} \
                     -w !{diagonal_width}                    \
@@ -408,7 +395,7 @@ process run_modle_tools_eval {
                     -i '!{target_cool}'                    \
                     --reference-matrix '!{reference_cool}' \
                     -o "$out_prefix"                       \
-                    --bin-size '!{bin_size}'               \
+                    --resolution '!{bin_size}'             \
                     -w !{diagonal_width}                   \
                     --threads $(( 2 * !{task.cpus} ))
         '''
@@ -499,7 +486,6 @@ process dump_pixels {
     label 'process_short'
 
     input:
-        path main_script
         path ref_cool
         path tgt_cool
         path regions_of_interest
@@ -514,7 +500,7 @@ process dump_pixels {
         '''
         set -o pipefail
 
-        python3 '!{main_script}'                        \
+        '!{params.script_dir}/extract_pairs_of_pixels_from_cool.py' \
             --ref-matrix '!{ref_cool}'                  \
             --tgt-matrix '!{tgt_cool}'                  \
             --chrom-ranges-bed '!{regions_of_interest}' \
@@ -531,7 +517,6 @@ process compute_custom_scores_py {
     label 'process_short'
 
     input:
-        path main_script
         path ref_cool
         path tgt_cool
         path regions_of_interest
@@ -550,7 +535,7 @@ process compute_custom_scores_py {
         out_vertical="$(echo '!{outprefix}' | sed 's/_transformed//g')_vertical.bedpe.gz"
         out_horizontal="$(echo '!{outprefix}' | sed 's/_transformed//g')_horizontal.bedpe.gz"
 
-        python3 '!{main_script}' \
+        '!{params.script_dir}/compute_custom_score.py'  \
             --ref-matrix '!{ref_cool}'                  \
             --tgt-matrix '!{tgt_cool}'                  \
             --chrom-ranges-bed '!{regions_of_interest}' \
@@ -559,7 +544,7 @@ process compute_custom_scores_py {
             --diagonal-width '!{diagonal_width}'        |
         gzip -9c > "$out_horizontal"
 
-        python3 '!{main_script}' \
+        '!{params.script_dir}/compute_custom_score.py'  \
             --ref-matrix '!{ref_cool}'                  \
             --tgt-matrix '!{tgt_cool}'                  \
             --chrom-ranges-bed '!{regions_of_interest}' \

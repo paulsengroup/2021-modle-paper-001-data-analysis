@@ -35,7 +35,7 @@ The `fetch_data.nf` and `preprocess_data.nf` workflows must be executed first (a
 
 Remaining workflows can be executed in any order.
 
-Inside the `config` folder there are two base configs (`base_hovig.config` and `base_saga.config`). The first config can be used to run workflows on a a single node/machine without using a job scheduler, while the second config can be used to run workflows on a compute cluster using the SLURM scheduler.
+Inside the `config` folder there are two base configs (`base_hovig.config` and `base_saga.config`). The first config can be used to run workflows on a single node/machine without using a job scheduler, while the second config can be used to run workflows on a compute cluster using the SLURM scheduler.
 
 Both configs are specific to the machine and cluster we used during workflow development and data analysis and will most likely need to be updated in order to run on other machines/clusters.
 
@@ -44,7 +44,7 @@ Both configs are specific to the machine and cluster we used during workflow dev
 ```bash
 nextflow run -c configs/fetch_data.config -c configs/base_hovig.config workflows/fetch_data.nf -resume
 nextflow run -c configs/preprocess_data.config -c configs/base_hovig.config workflows/preprocess_data.nf -resume
-nextflow run -c configs/make_heatmaps_comparison.config -c configs/base_hovig.config workflows/make_heatmaps_comparison.nf -resume
+nextflow run -c configs/heatmap_comparison_pt1.config -c configs/base_hovig.config workflows/heatmap_comparison_pt1.nf -resume
 nextflow run -c configs/gw_param_optimization.config -c configs/base_hovig.config workflows/gw_param_optimization.nf -resume
 nextflow run --max_memory=400.G --max_cpus=52 --max_time=336.h --project=na -c configs/run_benchmarks.config -c configs/base_hovig.config workflows/run_benchmarks.nf -resume
 ```
@@ -57,7 +57,7 @@ nextflow run --max_cpus=52 --max_memory=400.G --max_time=336.h --project="${SLUR
 nextflow run --max_cpus=52 --max_memory=400.G --max_time=336.h --project="${SLURM_PROJECT_ID-changeme}" \
              -c configs/preprocess_data.config -c configs/base_saga.config workflows/preprocess_data.nf -resume
 nextflow run --max_cpus=52 --max_memory=400.G --max_time=336.h --project="${SLURM_PROJECT_ID-changeme}" \
-             -c configs/make_heatmaps_comparison.config -c configs/base_saga.config workflows/make_heatmaps_comparison.nf -resume
+             -c configs/heatmap_comparison_pt1.config -c configs/base_saga.config workflows/heatmap_comparison_pt1.nf -resume
 nextflow run --max_cpus=52 --max_memory=400.G --max_time=336.h --project="${SLURM_PROJECT_ID-changeme}" \
              -c configs/gw_param_optimization.config -c configs/base_saga.config workflows/gw_param_optimization.nf -resume
 nextflow run --max_cpus=52 --max_memory=400.G --max_time=336.h --project="${SLURM_PROJECT_ID-changeme}" \
