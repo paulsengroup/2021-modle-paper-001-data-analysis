@@ -140,24 +140,28 @@ def objective_fx(eval_sites, horizontal_bwig, vertical_bwig, bin_size, **kwargs)
     return np.average(scores)
 
 
-def run_subprocess(cmd):
-    """
-    Run an external command as a subprocess, capture its output (stderr as well as stdout)
-    and raise an exception if the subprocess has a non-zero return code
-    """
-
-    status = sp.run(cmd, encoding="utf-8", stdout=sp.PIPE, stderr=sp.PIPE)
-    if status.returncode != 0:
-        print(status.stderr, file=sys.stderr)
-        print(status.stdout, file=sys.stdout)
-        raise RuntimeError(
-            f"Subprocess for {cmd[0]} {cmd[1]} exited with code {status.returncode}.\nCMD: " + " ".join(cmd))
+def run_subprocess(cmd, timeout=900, attempts=3):
+    try:
+        sp.check_output(cmd,
+                        encoding="utf-8",
+                        stdin=sp.DEVNULL,
+                        stderr=sp.STDOUT,
+                        timeout=timeout)
+    except sp.TimeoutExpired:
+        if attempts == 0:
+            raise
+        run_subprocess(cmd, timeout, attempts - 1)
+    except sp.CalledProcessError as e:
+        cmd_ = " ".join(cmd)
+        msg = f"Subprocess for {cmd[0]} {cmd[1]} exited with code {e.returncode}.\nCMD: {cmd_}\n\n{e.output}"
+        raise RuntimeError(msg)
 
 
 def run_modle_sim(params, **kwargs):
     cmd = ["modle", "sim",
            "-c", str(kwargs.get("chrom_sizes")),
            "--extrusion-barrier-file", str(kwargs.get("extrusion_barriers")),
+           "--force",
            "-o", str(kwargs.get("tmp_output_prefix")),
            "--threads", str(kwargs.get("threads")),
            "--diagonal-width", str(kwargs.get("diagonal_width"))]
@@ -189,6 +193,7 @@ def run_modle_tools_transform(input_name, sigma, sigma_multiplier, cutoff, **kwa
            "-m", "difference_of_gaussians",
            "--gaussian-blur-sigma", str(sigma),
            "--gaussian-blur-multiplier", str(sigma_multiplier),
+           "--force",
            "--binary-discretization-value", str(cutoff),
            "-o", str(output_name),
            "-w", str(kwargs.get("diagonal_width")),
@@ -208,7 +213,8 @@ def run_modle_tools_eval(input_name, **kwargs):
            "-o", str(kwargs.get("tmp_output_prefix")),
            "--metric", kwargs.get("modle_tools_eval_metric"),
            "-w", str(kwargs.get("diagonal_width")),
-           "--threads", str(kwargs.get("threads"))]
+           "--threads", str(kwargs.get("threads")),
+           "--force"]
 
     run_subprocess(cmd)
 
