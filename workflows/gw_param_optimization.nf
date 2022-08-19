@@ -116,7 +116,7 @@ process transform_reference_matrix {
 }
 
 process run_gw_optimization {
-    publishDir "${params.output_dir}/gw_optimization", mode: 'copy'
+    publishDir "${params.output_dir}/optimization", mode: 'copy'
 
     label 'process_very_high'
     label 'process_very_long'
