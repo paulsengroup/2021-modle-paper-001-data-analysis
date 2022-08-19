@@ -6,7 +6,6 @@ import random
 import bioframe as bf
 import subprocess as sp
 import multiprocessing as mp
-import matplotlib.pyplot as plt
 import warnings
 import pathlib
 import cooler
@@ -14,6 +13,7 @@ import numpy as np
 import glob
 import logging as log
 import json
+import threading
 import cloudpickle
 import pandas as pd
 import skimage
@@ -21,7 +21,6 @@ import pyBigWig
 import shutil
 import tempfile
 from deap import algorithms, base, creator, tools
-import networkx
 import time
 
 
@@ -44,6 +43,9 @@ def make_cli():
     cli.add_argument("--extrusion-barriers",
                      help="Path to extrusion barrier BED file",
                      required=True)
+    cli.add_argument("--target-contact-density",
+                     type=float,
+                     default=1.0)
     cli.add_argument("--gaussian-blur-sigma-ref",
                      default=2.2,
                      type=float)
@@ -84,17 +86,20 @@ def make_cli():
                      default=30,
                      type=int)
     cli.add_argument("--cxpb",
-                     default=0.5,
+                     default=0.3,
                      type=float,
                      help="Crossover probability")
     cli.add_argument("--mutpb-individual",
-                     default=0.33,
+                     default=0.7,
                      type=float,
                      help="Mutation probability")
     cli.add_argument("--mutpb-locus",
                      default=0.075,
                      type=float,
                      help="Mutation probability")
+    cli.add_argument("--mut-sigma",
+                     type=float,
+                     default=0.05)
     cli.add_argument("--hof-size",
                      default=10,
                      type=int,
@@ -103,9 +108,18 @@ def make_cli():
                      default=5,
                      type=int,
                      help="Tournament size")
-    cli.add_argument("--target-contact-density",
+    cli.add_argument("--weak-barrier-occ-thresh",
                      type=float,
-                     default=1.0)
+                     default=0.65,
+                     help="Barrier occupancy threshold used to discriminate weak barriers.")
+    cli.add_argument("--weak-barrier-fraction-thresh",
+                     type=float,
+                     default=0.85,
+                     help="Threshold to use when purging weak barriers. Barriers that have a low occupancy in e.g. >=85\% of the population are purged")
+    cli.add_argument("--weak-barrier-purge-interval",
+                     type=int,
+                     default=-1,
+                     help="Set to 0 or negative to not purge weak barriers.")
     cli.add_argument("--seed",
                      default=1630986062,
                      type=int)
@@ -123,6 +137,18 @@ def make_cli():
     cli.add_argument("--ncells",
                      default=1,
                      type=int)
+    cli.add_argument("--occupancy-lb",
+                     type=float,
+                     default=0.5)
+    cli.add_argument("--occupancy-ub",
+                     type=float,
+                     default=0.99)
+    cli.add_argument("--puu-lb",
+                     type=float,
+                     default=0.0)
+    cli.add_argument("--puu-ub",
+                     type=float,
+                     default=1.0)
     return cli
 
 
@@ -131,7 +157,7 @@ def import_barriers(path_to_barriers, path_to_chrom_subranges):
                         index_col=False)
     df2 = bf.read_table(path_to_chrom_subranges, names=["chrom", "start", "end"], index_col=False)
 
-    return bf.overlap(df1, df2, how="left").dropna().drop(columns=["chrom_", "start_", "end_"])
+    return bf.overlap(df1, df2, how="left").dropna().drop(columns=["chrom_", "start_", "end_"]).reset_index(drop=True)
 
 
 # https://stackoverflow.com/a/18081653
@@ -319,10 +345,10 @@ def import_scores_from_bwigs(horizontal_bwig, vertical_bwig, genomic_coords):
         # Fill scores vector
         for (_, (chrom, start, end, _, _, strand)) in genomic_coords.iterrows():
             if strand == "-":
-                scores.append(v_bw.stats(chrom, int(start), int(end))[0])
+                scores.append(v_bw.stats(chrom, int(start), int(end), exact=True)[0])
             else:
                 assert strand == "+"
-                scores.append(h_bw.stats(chrom, int(start), int(end))[0])
+                scores.append(h_bw.stats(chrom, int(start), int(end), exact=True)[0])
 
     # Drop nan and inf values
     scores = np.array(scores, dtype=float)
@@ -339,41 +365,59 @@ def objective_fx(eval_sites, horizontal_bwig, vertical_bwig, bin_size, diagonal_
     return np.average(scores)
 
 
-def generate_barrier_annotation(reference_barriers_df, barrier_params):
-    assert len(reference_barriers_df) == len(barrier_params)
-    df1 = reference_barriers_df.copy()
+def generate_barrier_annotation(barrier_annotation, barrier_params):
+    assert len(barrier_annotation) == len(barrier_params), f"{len(barrier_annotation)} != {len(barrier_params)}"
+    df1 = barrier_annotation.copy()
     df1["name"] = [puu for puu, _ in barrier_params]
     df1["score"] = [occ for _, occ in barrier_params]
 
     return df1
 
 
-def evaluate(barriers):
-    bin_size = int(args.get("bin_size"))
-    diagonal_width = int(args.get("diagonal_width"))
-    chrom_sizes = str(args.get("chrom_sizes"))
-    chrom_subranges = str(args.get("chrom_subranges"))
+def write_barriers_background(path, barrier_annotation, barrier_params):
 
-    reference_matrix_uri = args.get("reference_matrix")
-    if reference_matrix_uri.endswith(".mcool"):
-        reference_matrix_uri += "::/resolutions/" + str(bin_size)
+    def fx(path, barrier_annotation, barrier_params):
+        new_barriers = generate_barrier_annotation(barrier_annotation, barrier_params)
+        new_barriers.to_csv(path, sep="\t", header=None, index=False)
 
-    gb_num_diagonals_to_mask = int(args.get("num_diagonals_to_mask"))
+    t = threading.Thread(name="write_barriers_background",
+                         target=fx,
+                         args=(path, barrier_annotation, barrier_params))
+    t.start()
 
-    gb_sigma_tgt = float(args.get("gaussian_blur_sigma_tgt"))
-    gb_sigma_mult_tgt = float(args.get("gaussian_blur_sigma_multiplier_tgt"))
-    gb_cutoff_tgt = float(args.get("discretization_thresh_tgt"))
+    return t
 
-    gb_sigma_ref = float(args.get("gaussian_blur_sigma_ref"))
-    gb_sigma_mult_ref = float(args.get("gaussian_blur_sigma_multiplier_ref"))
-    gb_cutoff_ref = float(args.get("discretization_thresh_ref"))
+
+def transform_reference_matrix(reference_matrix_uri, out_path, chrom_subranges, sigma, sigma_mult, num_diagonals_to_mask, cutoff):
+    return transform_pixels(str(reference_matrix_uri),
+                            str(out_path),
+                            chrom_subranges,
+                            sigma,
+                            sigma_mult,
+                            num_diagonals_to_mask,
+                            cutoff,
+                            balance=True)
+
+
+def evaluate(barrier_params,
+             barrier_annotation,
+             bin_size,
+             diagonal_width,
+             chrom_sizes,
+             chrom_subranges,
+             reference_cooler_transformed,
+             gb_num_diagonals_to_mask,
+             gb_sigma_tgt,
+             gb_sigma_mult_tgt,
+             gb_cutoff_tgt):
 
     with tempfile.TemporaryDirectory(suffix="_modle_sim_extr_barrier_opt") as tmpdir:
-        path_to_barriers = pathlib.Path(f"{tmpdir}/barriers.bed")
+        path_to_barriers = pathlib.Path(f"{tmpdir}/barriers.bed.fifo")
         tmp_out_prefix = pathlib.Path(f"{tmpdir}/out")
 
-        new_barriers = generate_barrier_annotation(extrusion_barrier_df, barriers)
-        new_barriers.to_csv(path_to_barriers, sep="\t", header=None, index=False)
+        os.mkfifo(path_to_barriers)
+
+        t1 = write_barriers_background(path_to_barriers, barrier_annotation, barrier_params)
 
         modle_cooler = run_modle_sim(path_to_barriers,
                                      tmp_out_prefix,
@@ -384,6 +428,7 @@ def evaluate(barriers):
                                      args.get("ncells"),
                                      args.get("target_contact_density"),
                                      args.get("modle_exec")).cooler
+        t1.join()
 
         modle_cooler_transformed = transform_pixels(str(modle_cooler),
                                                     str(modle_cooler.with_suffix("")) + "_transformed.cool",
@@ -394,15 +439,6 @@ def evaluate(barriers):
                                                     gb_cutoff_tgt,
                                                     balance=False)
 
-        reference_cooler_transformed = transform_pixels(str(reference_matrix_uri),
-                                                        str(tmp_out_prefix.with_suffix("")) + "_reference.cool",
-                                                        chrom_subranges,
-                                                        gb_sigma_ref,
-                                                        gb_sigma_mult_ref,
-                                                        gb_num_diagonals_to_mask,
-                                                        gb_cutoff_ref,
-                                                        balance=True)
-
         bwig_horizontal, bwig_vertical, _, _ = run_modle_tools_eval(reference_cooler_transformed,
                                                                     modle_cooler_transformed,
                                                                     tmp_out_prefix,
@@ -411,42 +447,61 @@ def evaluate(barriers):
                                                                     diagonal_width,
                                                                     args.get("modle_tools_exec"))
 
-        return objective_fx(extrusion_barrier_df, bwig_horizontal, bwig_vertical, bin_size, diagonal_width),
+        return objective_fx(barrier_annotation, bwig_horizontal, bwig_vertical, bin_size, diagonal_width),
 
 
-def init_barriers(barriers, num_barriers, cutoff=0.5):
-    barriers_ = []
-    for i in range(num_barriers):
-        puu = random.uniform(0.0, 1.0)
-        occ = random.uniform(0.0, 1.0)
-
-        if occ < cutoff:
-            occ = 0.0
-
-        barriers_.append(BarrierT(puu, occ))
-
-    return barriers(barriers_)
+def init_barriers(barriers, num_barriers, occ_lb, occ_ub, puu_lb, puu_ub):
+    return barriers([BarrierT(random.uniform(puu_lb, puu_ub),
+                              random.uniform(occ_lb, occ_ub)) for _ in range(num_barriers)])
 
 
-def mutate_barriers(barriers, indpb, mu=0.0, sigma=0.05, cutoff=0.5):
+def mutate_barriers(barriers, indpb, sigma, occ_lb, occ_ub, puu_lb, puu_ub, mu=0.0):
     new_puu = np.clip(tools.mutGaussian([puu for puu, _ in barriers], mu, sigma, indpb)[0],
-                      0.0,
-                      1.0)
+                      puu_lb,
+                      puu_ub)
     new_occ = np.clip(tools.mutGaussian([occ for _, occ in barriers], mu, sigma, indpb)[0],
-                      0.0,
-                      1.0)
+                      occ_lb,
+                      occ_ub)
 
     for i in range(len(barriers)):
         # noinspection PyChainedComparisons
-        if barriers[i].occ == 0 and new_occ[i] != 0 and new_occ[i] < cutoff:
-            new_occ[i] = min(new_occ[i] + cutoff, 1.0)
-        elif barriers[i].occ >= cutoff and new_occ[i] < cutoff:
+        if barriers[i].occ == 0 and new_occ[i] != 0 and new_occ[i] < occ_lb:
+            new_occ[i] = min(new_occ[i] + occ_lb, occ_ub)
+        elif barriers[i].occ >= occ_lb and new_occ[i] < occ_lb:
             new_occ[i] = 0.0
 
-    return creator.Barrier([BarrierT(puu, occ) for puu, occ in zip(new_puu, new_occ)]),
+    return creator.Individual([BarrierT(puu, occ) for puu, occ in zip(new_puu, new_occ)]),
 
 
-def init_or_import_population(**kwargs):
+def identify_weak_barriers(pop, occupancy_thresh, fraction_thresh):
+    sum1 = np.zeros(len(pop[0]), dtype=int)
+    sum2 = np.zeros(len(pop[0]), dtype=int)
+
+    for individual in pop:
+        sum1 += np.array([occ < occupancy_thresh for _, occ in individual], dtype=int)
+        sum2 += np.array([puu == 1.0 for puu, _ in individual], dtype=int)
+
+    mask1 = (sum1.astype(float) / len(pop)) >= fraction_thresh
+    mask2 = (sum2.astype(float) / len(pop)) >= fraction_thresh
+
+    return (mask1 | mask2)
+
+
+def purge_weak_barriers_from_pop(pop, weak_barrier_mask):
+    new_pop = []
+    for individual in pop:
+        new_pop.append(creator.Individual(
+            [barrier for drop, barrier in zip(weak_barrier_mask, individual) if not drop])
+        )
+
+    return new_pop
+
+
+def purge_weak_barriers_from_annotation(annotation, weak_barrier_mask):
+    return annotation.drop(np.where(weak_barrier_mask)[0], axis="rows").reset_index(drop=True)
+
+
+def init_or_import_population(toolbox, **kwargs):
     if kwargs.get("initial_population") is None:
         pop_size = int(kwargs.get("pop_size"))
         log.info(f"Initializing a population of size {pop_size}")
@@ -459,77 +514,161 @@ def init_or_import_population(**kwargs):
         old_pop = cloudpickle.load(fp)
         new_pop = []
         for individual in old_pop:
-            new_pop.append(creator.Barrier([BarrierT(puu, occ) for puu, occ in individual]))
+            new_pop.append(creator.Individual([BarrierT(puu, occ) for puu, occ in individual]))
+            # new_pop[-1].fitness.values = individual.fitness.values
         log.info(f"Imported a population of {len(new_pop)} individuals")
         return new_pop
 
 
-def run_optimize(**kwargs):
-    n_generations = int(kwargs.get("num_generations"))
+def run_optimization(barrier_annotation, **kwargs):
+    num_generations = int(kwargs.get("num_generations"))
+    generation_step = int(kwargs.get("weak_barrier_purge_interval"))
+
+    purge_weak_barriers = generation_step > 0
+
+    if purge_weak_barriers:
+        gen_per_stage = [generation_step] * int(((num_generations + generation_step - 1) / generation_step))
+        weak_barrier_occ_thresh = float(kwargs.get("weak_barrier_occ_thresh"))
+        weak_barrier_frac_thresh = float(kwargs.get("weak_barrier_fraction_thresh"))
+    else:
+        gen_per_stage = [num_generations]
+
     crossover_prob = float(kwargs.get("cxpb"))
     mutation_prob = float(kwargs.get("mutpb_individual"))
     hof_size = int(kwargs.get("hof_size"))
 
     tpool_size = int(np.ceil(int(kwargs.get("nthreads")) / int(kwargs.get("ncells"))))
-    with mp.Pool(tpool_size) as pool:
-        toolbox.register("map", pool.map)
-        pop = init_or_import_population(**kwargs)
 
-        mu = int(kwargs.get("pop_size"))
-        lambda_ = int(kwargs.get("lambda"))
-        hof = tools.HallOfFame(hof_size)
-        history = tools.History()
-        history.update(pop)
+    fittest_individual = None
+    barrier_annotation = barrier_annotation.copy()
 
-        t0 = time.time()
-        pop, logbook = algorithms.eaMuCommaLambda(pop, toolbox,
-                                                  mu=mu,
-                                                  lambda_=lambda_,
-                                                  cxpb=crossover_prob,
-                                                  mutpb=mutation_prob,
-                                                  ngen=n_generations,
-                                                  stats=stats,
-                                                  halloffame=hof,
-                                                  verbose=True)
+    with tempfile.NamedTemporaryFile() as tmpcool:
+        transform_reference_matrix(
+            str(kwargs.get("reference_matrix_uri")),
+            tmpcool.name,
+            str(kwargs.get("chrom_subranges")),
+            float(kwargs.get("gaussian_blur_sigma_ref")),
+            float(kwargs.get("gaussian_blur_sigma_multiplier_ref")),
+            int(kwargs.get("num_diagonals_to_mask")),
+            float(kwargs.get("discretization_thresh_ref")))
+
+        kwargs["reference_cooler_transformed"] = str(tmpcool.name)
+
+        with mp.Pool(tpool_size) as pool:
+            toolbox = init_toolbox(barrier_annotation, pool.map, **kwargs)
+            pop = init_or_import_population(toolbox, **kwargs)
+
+            mu = int(kwargs.get("pop_size"))
+            lambda_ = int(kwargs.get("lambda"))
+            hof = tools.HallOfFame(hof_size)
+            history = tools.History()
+            history.update(pop)
+
+            t0 = time.time()
+            current_gen = 0
+            for n in gen_per_stage:
+                pop, logbook = algorithms.eaMuCommaLambda(pop, toolbox,
+                                                          mu=mu,
+                                                          lambda_=lambda_,
+                                                          cxpb=crossover_prob,
+                                                          mutpb=mutation_prob,
+                                                          ngen=n,
+                                                          stats=stats,
+                                                          halloffame=hof,
+                                                          verbose=True)
+                current_gen += n
+                if fittest_individual is None or fittest_individual != hof[0]:
+                    fittest_individual = hof[0]
+                    best_barrier_annotation = generate_barrier_annotation(barrier_annotation, fittest_individual)
+                    padding = len(str(num_generations))
+                    best_barrier_annotation.to_csv(f"{out_prefix}_extrusion_barriers_gen_{current_gen:0>{padding}}.bed.gz",
+                                                   sep="\t",
+                                                   header=None,
+                                                   index=False,
+                                                   compression="gzip")
+
+                if purge_weak_barriers:
+                    log.info("Purging weak barriers...")
+                    num_barriers = len(barrier_annotation)
+                    weak_barrier_mask = identify_weak_barriers(pop,
+                                                               weak_barrier_occ_thresh,
+                                                               weak_barrier_frac_thresh)
+                    if np.sum(weak_barrier_mask) == 0:
+                        log.info(f"No barriers were purged ({num_barriers} barriers left)")
+                        continue
+
+                    barrier_annotation = purge_weak_barriers_from_annotation(barrier_annotation,
+                                                                             weak_barrier_mask)
+
+                    toolbox = init_toolbox(barrier_annotation, pool.map, **kwargs)
+                    pop = purge_weak_barriers_from_pop(pop, weak_barrier_mask)
+
+                    history.update(pop)
+                    num_barriers2 = len(barrier_annotation)
+                    log.info(f"Purged {num_barriers - num_barriers2} barriers ({num_barriers2} barriers left)")
+
         t1 = time.time()
         elapsed_time = time.strftime("%Hh%Mm%Ss", time.gmtime(t1 - t0))
-        log.info(f"Optimization took {elapsed_time} ({n_generations} generations)")
-        return pop, logbook, hof, history
+        log.info(f"Optimization took {elapsed_time} ({num_generations} generations)")
+        return pop, barrier_annotation, logbook, hof, history
 
 
-def plot_genealogy(history, output_path):
-    grap = networkx.DiGraph(history.genealogy_tree)
-    graph = grap.reverse()
-    colors = [toolbox.evaluate(history.genealogy_history[i])[0] for i in graph]
-    networkx.draw(graph, node_color=colors)
-    plt.savefig(output_path, dpi=300)
+def init_toolbox(barrier_annotation, tpool_map,  **kwargs):
+    toolbox = base.Toolbox()
+    toolbox.register("individual",
+                     init_barriers,
+                     creator.Individual,
+                     num_barriers=len(barrier_annotation),
+                     occ_lb=float(kwargs.get("occupancy_lb")),
+                     occ_ub=float(kwargs.get("occupancy_ub")),
+                     puu_lb=float(kwargs.get("puu_lb")),
+                     puu_ub=float(kwargs.get("puu_ub")))
+
+    toolbox.register("population", tools.initRepeat, list, toolbox.individual)
+
+    toolbox.register("mate", tools.cxTwoPoint)
+    toolbox.register("mutate", mutate_barriers,
+                     indpb=float(kwargs.get("mutpb_locus")),
+                     sigma=float(kwargs.get("mut_sigma")),
+                     occ_lb=float(kwargs.get("occupancy_lb")),
+                     occ_ub=float(kwargs.get("occupancy_ub")),
+                     puu_lb=float(kwargs.get("puu_lb")),
+                     puu_ub=float(kwargs.get("puu_ub")))
+
+    toolbox.register("select", tools.selTournament, tournsize=int(kwargs.get("tournament_size")))
+    toolbox.register("map", tpool_map)
+
+    toolbox.register("evaluate", evaluate,
+                     barrier_annotation=barrier_annotation,
+                     bin_size=int(kwargs.get("bin_size")),
+                     diagonal_width=int(kwargs.get("diagonal_width")),
+                     chrom_sizes=str(kwargs.get("chrom_sizes")),
+                     chrom_subranges=str(kwargs.get("chrom_subranges")),
+                     reference_cooler_transformed=str(kwargs.get("reference_cooler_transformed")),
+                     gb_num_diagonals_to_mask=int(kwargs.get("num_diagonals_to_mask")),
+                     gb_sigma_tgt=float(kwargs.get("gaussian_blur_sigma_tgt")),
+                     gb_sigma_mult_tgt=float(kwargs.get("gaussian_blur_sigma_multiplier_tgt")),
+                     gb_cutoff_tgt=float(kwargs.get("discretization_thresh_tgt")))
+
+    return toolbox
 
 
 if __name__ == "__main__":
     log.getLogger().setLevel(log.INFO)
 
     args = vars(make_cli().parse_args())
+    if args.get("reference_matrix").endswith(".mcool"):
+        args["reference_matrix_uri"] = args["reference_matrix"] + "::/resolutions/" + str(args.get("bin_size"))
 
-    extrusion_barrier_df = import_barriers(args.get("extrusion_barriers"), args.get("chrom_subranges"))
-    log.info(f"Optimizing {len(extrusion_barrier_df)} extrusion barriers")
+    barrier_annotation = import_barriers(args.get("extrusion_barriers"), args.get("chrom_subranges"))
+    num_barriers = len(barrier_annotation)
+    log.info(f"Optimizing {num_barriers} extrusion barriers")
 
     random.seed(int(args.get("seed")))
 
     BarrierT = namedtuple("BarrierT", ["puu", "occ"])
     creator.create("FitnessMin", base.Fitness, weights=(-1.0,))
-    creator.create("Barrier", list, fitness=creator.FitnessMin)
-
-    toolbox = base.Toolbox()
-    toolbox.register("individual",
-                     init_barriers,
-                     creator.Barrier, num_barriers=len(extrusion_barrier_df))
-    toolbox.register("population", tools.initRepeat, list, toolbox.individual)
-
-    toolbox.register("mate", tools.cxTwoPoint)
-    toolbox.register("mutate", mutate_barriers, indpb=float(args.get("mutpb_locus")))
-
-    toolbox.register("select", tools.selTournament, tournsize=int(args.get("tournament_size")))
-    toolbox.register("evaluate", evaluate)
+    creator.create("Individual", list, fitness=creator.FitnessMin)
 
     stats = tools.Statistics(lambda ind: ind.fitness.values)
     stats.register("avg", np.mean)
@@ -539,7 +678,7 @@ if __name__ == "__main__":
 
     out_prefix = args.get("output_prefix")
     os.makedirs(os.path.dirname(out_prefix), exist_ok=True)
-    pop, logbook, hof, history = run_optimize(**args)
+    pop, barrier_annotation, logbook, hof, history = run_optimization(barrier_annotation, **args)
 
     with open(f"{out_prefix}_population.pickle", "wb") as fp:
         cloudpickle.dump(pop, fp)
@@ -553,17 +692,8 @@ if __name__ == "__main__":
     with open(f"{out_prefix}_settings.json", "w") as fp:
         print(json.dumps(args, indent=2), file=fp)
 
-    # plot_genealogy(history, f"{out_prefix}_genealogy.png")
-
-    hof_deduped = set()
-    for i, individual in enumerate(hof):
-        if tuple(individual) in hof_deduped:
-            continue
-        df = generate_barrier_annotation(extrusion_barrier_df, individual)
-        df.to_csv(f"{out_prefix}_extrusion_barriers_hof_{i:03}.bed.gz",
-                  sep="\t",
-                  header=None,
-                  index=False,
-                  compression="gzip")
-
-        hof_deduped.add(tuple(individual))
+    barrier_annotation.to_csv(f"{out_prefix}_extrusion_barriers.bed.gz",
+                              sep="\t",
+                              header=None,
+                              index=False,
+                              compression="gzip")

@@ -4,6 +4,6 @@
 
 [simulate]
 bin-size=5000
-target-contact-density=20.0
+target-contact-density=100.0
 lefs-per-mbp=20
 sigma=1500

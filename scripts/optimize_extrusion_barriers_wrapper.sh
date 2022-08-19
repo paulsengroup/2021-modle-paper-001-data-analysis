@@ -5,8 +5,8 @@ set -o pipefail
 set -u
 set -x
 
-if [ $# -ne 15 ]; then
-    echo 2>&1 "Usage: $0 script_dir nthreads chrom_sizes chrom_ranges extr_barriers bin_size target_contact_density ref_cooler polish_cutoff sigma_ref sigma_mult_reg sigma_tgt sigma_mult_tgt"
+if [ $# -ne 14 ]; then
+    echo 2>&1 "Usage: $0 script_dir nthreads chrom_sizes chrom_ranges extr_barriers bin_size target_contact_density ref_cooler sigma_ref sigma_mult_ref discr_thresh_ref sigma_tgt sigma_mult_tgt discr_thresh_tgt"
     exit 1
 fi
 
@@ -15,17 +15,16 @@ script_dir="$1"
 nthreads="$2"
 chrom_sizes="$3"
 chrom_ranges="$4"
-bin_size="$5"
-target_contact_density="$6"
-extr_barriers="$7"
+extr_barriers="$5"
+bin_size="$6"
+target_contact_density="$7"
 ref_matrix="$8"
-polish_cutoff="$9"
-sigma_ref="${10}"
-sigma_mult_ref="${11}"
-discr_thresh_ref="${12}"
-sigma_tgt="${13}"
-sigma_mult_tgt="${14}"
-discr_thresh_tgt="${15}"
+sigma_ref="$9"
+sigma_mult_ref="${10}"
+discr_thresh_ref="${11}"
+sigma_tgt="${12}"
+sigma_mult_tgt="${13}"
+discr_thresh_tgt="${14}"
 
 function compute_seeds {
 
@@ -89,67 +88,51 @@ function polish_annotation {
 
 # Try to rapidly improve the initial (random) population by mutating a lot and fast
 run_optimization --extrusion-barriers "$extr_barriers" \
-    --pop-size 256 \
-    --num-generations 15 \
-    --lambda 512 \
+    --pop-size 128 \
+    --num-generations 25 \
+    --lambda 256 \
     --cxpb 0.5 \
     --mutpb-individual 0.5 \
     --mutpb-locus 0.1 \
+    --mut-sigma 0.1 \
     --tournament-size 3
 
-# Keep exploring with a more conservative mutation rate
 path_to_initial_pop="$(printf 'stage_%03d/stage_%03d_population.pickle' $((stage - 1)) $((stage - 1)))"
+extr_barriers="$(printf 'stage_%03d/stage_%03d_extrusion_barriers.bed.gz' $((stage - 1)) $((stage - 1)))"
 run_optimization --extrusion-barriers "$extr_barriers" \
     --initial-population "$path_to_initial_pop" \
-    --pop-size 256 \
-    --num-generations 150 \
-    --lambda 512 \
+    --pop-size 128 \
+    --num-generations 50 \
+    --lambda 256 \
     --cxpb 0.3 \
     --mutpb-individual 0.7 \
     --mutpb-locus 0.03 \
     --tournament-size 5
 
-# Hopefully at this point we have a pretty good set of solutions.
-# Cut back even more on the mutation rate
 path_to_initial_pop="$(printf 'stage_%03d/stage_%03d_population.pickle' $((stage - 1)) $((stage - 1)))"
+extr_barriers="$(printf 'stage_%03d/stage_%03d_extrusion_barriers.bed.gz' $((stage - 1)) $((stage - 1)))"
 run_optimization --extrusion-barriers "$extr_barriers" \
     --initial-population "$path_to_initial_pop" \
-    --pop-size 256 \
-    --num-generations 100 \
-    --lambda 256 \
-    --cxpb 0.3 \
-    --mutpb-individual 0.7 \
-    --mutpb-locus 0.01 \
-    --tournament-size 5
-
-# At this point we (usually) have a large number of barriers with low occupancy < 0.6.
-# These barriers tend to have no/minor effects in the contact matrices produced by MoDLE.
-polished_annotation="$(printf 'stage_%03d/stage_%03d_barrier_annotation_polished.bed' $((stage - 1)) $((stage - 1)))"
-barrier_annotations=("$(printf 'stage_%03d/stage_%03d' $((stage - 1)) $((stage - 1)))"*.bed.gz)
-polish_annotation "$polish_cutoff" "${barrier_annotations[@]}" >"$polished_annotation"
-
-run_optimization --extrusion-barriers "$polished_annotation" \
     --pop-size 256 \
     --num-generations 200 \
+    --weak-barrier-purge-interval 15 \
     --lambda 256 \
     --cxpb 0.3 \
     --mutpb-individual 0.7 \
     --mutpb-locus 0.03 \
-    --tournament-size 5 \
-    --hof-size 256 \
-    --ncells 8
+    --tournament-size 5
 
 path_to_initial_pop="$(printf 'stage_%03d/stage_%03d_population.pickle' $((stage - 1)) $((stage - 1)))"
-run_optimization --extrusion-barriers "$polished_annotation" \
+extr_barriers="$(printf 'stage_%03d/stage_%03d_extrusion_barriers.bed.gz' $((stage - 1)) $((stage - 1)))"
+run_optimization --extrusion-barriers "$extr_barriers" \
     --initial-population "$path_to_initial_pop" \
     --pop-size 256 \
-    --num-generations 20 \
-    --lambda 256 \
-    --cxpb 0.7 \
-    --mutpb-individual 0.3 \
+    --num-generations 50 \
+    --lambda 375 \
+    --cxpb 0.1 \
+    --mutpb-individual 0.5 \
     --mutpb-locus 0.01 \
-    --tournament-size 5 \
-    --hof-size 256 \
-    --ncells 16
+    --mut-sigma 0.025 \
+    --tournament-size 5
 
-cp "$(printf 'stage_%03d/stage_%03d' $((stage - 1)) $((stage - 1)))"*hof_000.bed.gz final_annotation.bed.gz
+cp "$(printf 'stage_%03d/stage_%03d' $((stage - 1)) $((stage - 1)))_extrusion_barriers.bed.gz" extrusion_barriers_final.bed.gz

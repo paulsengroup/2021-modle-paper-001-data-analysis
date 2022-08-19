@@ -57,8 +57,7 @@ workflow {
                                 params.modle_low_sigma,
                                 params.modle_sigma_mult,
                                 params.modle_discr_thresh,
-                                optimization_ref_matrices,
-                                params.annotation_polish_cutoff)
+                                optimization_ref_matrices)
 
     optimize_extrusion_barriers.out.optimized_barriers
                                    .branch {
@@ -80,8 +79,9 @@ workflow {
                                                file(params.hoxd_rearr2),
                                                file(params.idh_mut_rearr)))
 
-    extr_barriers = optimize_extrusion_barriers.out.optimized_barriers
-                                               .concat(generate_mut_barrier_annotation.out.bed)
+    extr_barriers = Channel.empty()
+                           .mix(optimize_extrusion_barriers.out.optimized_barriers,
+                                generate_mut_barrier_annotation.out.bed)
 
     extr_barriers.map {
                         if (it =~ /hoxd/) {
@@ -112,7 +112,7 @@ process optimize_extrusion_barriers {
     publishDir "${params.output_dir}/optimized_barriers", mode: 'copy'
 
     label 'process_very_high'
-    label 'process_long'
+    label 'process_very_long'
 
     input:
         val basename
@@ -131,7 +131,6 @@ process optimize_extrusion_barriers {
         val discretization_thresh_tgt
 
         path reference_matrix
-        val annotation_polish_cutoff
 
     output:
         path "*final_annotation.bed.gz", emit: optimized_barriers
@@ -145,11 +144,10 @@ process optimize_extrusion_barriers {
             '!{task.cpus}' \
             '!{chrom_sizes}' \
             '!{regions_of_interest}' \
+            '!{extr_barriers}' \
             '!{bin_size}' \
             '!{target_contact_density}' \
-            '!{extr_barriers}' \
             '!{reference_matrix}' \
-            '!{annotation_polish_cutoff}' \
             '!{gaussian_blur_sigma_ref}' \
             '!{gaussian_blur_mult_ref}' \
             '!{discretization_thresh_ref}' \
@@ -163,7 +161,7 @@ process optimize_extrusion_barriers {
             rm -r "$dir/"
         done
 
-        mv final_annotation.bed.gz '!{basename}_final_annotation.bed.gz'
+        mv extrusion_barriers_final.bed.gz '!{basename}_final_annotation.bed.gz'
         '''
 }
 
@@ -186,7 +184,9 @@ process generate_mut_barrier_annotation {
 
         outname="$(echo '!{outname}' | sed 's/_wt//')"
 
-        '!{params.script_dir}/rearrange_bed_intervals.py' '!{annotation}' '!{rearrangements}' |
+        '!{params.script_dir}/rearrange_bed_intervals.py' \
+            '!{annotation}'                               \
+            '!{rearrangements}'                           |
             gzip -9 > "$outname"
         '''
 }
