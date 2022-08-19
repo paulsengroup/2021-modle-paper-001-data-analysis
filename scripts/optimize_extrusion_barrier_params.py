@@ -229,7 +229,7 @@ def convert_dense_pixels_to_sparse(dense_pixels, chrom, start_pos, end_pos, bin_
     return pd.DataFrame(pixels)
 
 
-def run_subprocess(cmd, timeout=300, attempts=3):
+def process(cmd, timeout=300, attempts=3):
     try:
         sp.check_output(cmd,
                         encoding="utf-8",
@@ -240,7 +240,7 @@ def run_subprocess(cmd, timeout=300, attempts=3):
         if attempts == 0:
             raise
         log.warning(f"Subprocess {cmd[0]} {cmd[1]} timed out. Relaunching subprocess ({attempts} attempts left)")
-        run_subprocess(cmd, timeout, attempts - 1)
+        process(cmd, timeout, attempts - 1)
     except sp.CalledProcessError as e:
         cmd_ = " ".join([str(x) for x in cmd])
         msg = f"Subprocess for {cmd[0]} {cmd[1]} exited with code {e.returncode}.\nCMD: {cmd_}\n\n{e.output}"
@@ -248,8 +248,16 @@ def run_subprocess(cmd, timeout=300, attempts=3):
         raise RuntimeError(msg)
 
 
-def run_modle_sim(path_to_barriers, tmp_out_prefix, bin_size, chrom_sizes, chrom_subranges, diagonal_width, ncells,
+def run_modle_sim(barrier_annotation, barrier_params, tmp_out_prefix, bin_size, chrom_sizes, chrom_subranges, diagonal_width, ncells,
                   target_contact_density, modle_exec):
+
+    def discard_fifo(path):
+        with open(path, "rb") as f:
+            f.read()
+
+    path_to_barriers = pathlib.Path(f"{tmp_out_prefix}_barriers.bed.fifo")
+    os.mkfifo(path_to_barriers)
+    barrier_writer = write_barriers_background(path_to_barriers, barrier_annotation, barrier_params)
     cmd = [modle_exec, "sim",
            "-r", str(bin_size),
            "-c", str(chrom_sizes),
@@ -263,7 +271,21 @@ def run_modle_sim(path_to_barriers, tmp_out_prefix, bin_size, chrom_sizes, chrom
            "--threads", str(ncells),
            "-w", str(diagonal_width)]
 
-    run_subprocess(cmd)
+    attempts_left = 3
+    for _ in range(3):
+        try:
+            process(cmd, timeout=300, attempts=0)
+            barrier_writer.join()
+            break
+        except sp.TimeoutExpired:
+            if attempts_left != 0:
+                attempts_left -= 1
+                discard_fifo(path_to_barriers)
+                barrier_writer.join()
+                os.mkfifo(path_to_barriers)
+                barrier_writer = write_barriers_background(path_to_barriers, barrier_annotation, barrier_params)
+                continue
+            raise
 
     ModleSimOutputs = namedtuple("ModleSimOutputs", ["cooler", "log", "config"])
 
@@ -320,7 +342,7 @@ def run_modle_tools_eval(path_to_reference_matrix, path_to_target_matrix, tmp_ou
            "-w", str(diagonal_width),
            "--threads", "1"]
 
-    run_subprocess(cmd)
+    process(cmd)
 
     ModleToolsEvalOutputs = namedtuple("ModleToolsEvalOutputs",
                                        ["bigwig_horizontal", "bigwig_vertical", "tsv_horizontal", "tsv_vertical"])
@@ -412,14 +434,10 @@ def evaluate(barrier_params,
              gb_cutoff_tgt):
 
     with tempfile.TemporaryDirectory(suffix="_modle_sim_extr_barrier_opt") as tmpdir:
-        path_to_barriers = pathlib.Path(f"{tmpdir}/barriers.bed.fifo")
         tmp_out_prefix = pathlib.Path(f"{tmpdir}/out")
 
-        os.mkfifo(path_to_barriers)
-
-        t1 = write_barriers_background(path_to_barriers, barrier_annotation, barrier_params)
-
-        modle_cooler = run_modle_sim(path_to_barriers,
+        modle_cooler = run_modle_sim(barrier_annotation,
+                                     barrier_params,
                                      tmp_out_prefix,
                                      bin_size,
                                      chrom_sizes,
@@ -428,7 +446,6 @@ def evaluate(barrier_params,
                                      args.get("ncells"),
                                      args.get("target_contact_density"),
                                      args.get("modle_exec")).cooler
-        t1.join()
 
         modle_cooler_transformed = transform_pixels(str(modle_cooler),
                                                     str(modle_cooler.with_suffix("")) + "_transformed.cool",
