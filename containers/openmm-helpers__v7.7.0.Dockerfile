@@ -20,7 +20,7 @@ RUN micromamba install -y \
     -c conda-forge \
     -c bioconda \
     'biopython>=1.79' \
-    click \
+    'click<8.1.3' \
     'cooler>=0.8.11' \
     cudatoolkit=$CUDA_VERSION \
     Cython \
@@ -43,7 +43,7 @@ RUN git clone https://github.com/open2c/polychrom.git /tmp/polychrom \
     && cd /tmp/polychrom \
     && git checkout $POLYCHROM_COMMIT_HASH \
     && find . -type f -exec sed -i 's/import simtk.openmm as openmm/import openmm/g' {} + \
-    && echo "click" >> requirements.txt \
+    && echo "click<8.1.3" >> requirements.txt \
     && sed -i '/ext_modules=ext_modules,/a\    include_dirs=[numpy.get_include()],' setup.py \
     && sed -i '/"polychrom\/__polymer_math.cpp"],/a\            include_dirs=[numpy.get_include()]' setup.py \
     && pip install . \
