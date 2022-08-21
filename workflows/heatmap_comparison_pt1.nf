@@ -38,9 +38,9 @@ workflow {
                        params.monomer_size,
                        params.bin_size)
 
-        run_modle(Channel.fromPath(params.modle_config),
-                  file(params.chrom_sizes),
-                  file(params.extr_barriers))
+        run_modle(Channel.fromPath(params.modle_configs),
+                                   file(params.chrom_sizes),
+                                   file(params.extr_barriers))
 
         coolers0 = run_modle.out.cool.mix(openmm_to_cool.out.cool)
         subsample_contacts(file(params.microc_cool),
@@ -121,8 +121,7 @@ workflow {
                     params.bin_size,
                     params.diagonal_width)
 
-        compute_custom_scores_py(file(params.compute_custom_scores_script),
-                                 Channel.empty().concat(coolers2.openmm,
+        compute_custom_scores_py(Channel.empty().concat(coolers2.openmm,
                                                         coolers2.modle,
                                                         coolers2.openmm),
                                  Channel.empty().concat(coolers2.microc,
@@ -132,7 +131,8 @@ workflow {
                                  params.bin_size,
                                  params.diagonal_width)
 
-        filter_custom_scores(compute_custom_scores_py.out.vertical_scores.mix(compute_custom_scores_py.out.horizontal_scores),
+        filter_custom_scores(Channel.empty().mix(compute_custom_scores_py.out.vertical_scores,
+                                                 compute_custom_scores_py.out.horizontal_scores),
                              file(params.extr_barriers))
 }
 
@@ -140,7 +140,6 @@ process liftover_cool {
     label 'process_short'
 
     input:
-        path script
         path input_cool
         path chrom_sizes
         path chrom_ranges
@@ -153,10 +152,11 @@ process liftover_cool {
     shell:
         '''
         outname="!{assembly_name}_$(basename '!{input_cool}' .mcool)_!{bin_size}.cool"
-        ./liftover_matrix_cool.py --input-cool '!{input_cool}::/resolutions/!{bin_size}'   \
-                                  --output-cool "$outname"                                 \
-                                  --chrom-sizes '!{chrom_sizes}'                           \
-                                  --chrom-ranges '!{chrom_ranges}'                         \
+        '!{params.script_dir}/liftover_matrix_cool.py'                                   \
+                                  --input-cool '!{input_cool}::/resolutions/!{bin_size}' \
+                                  --output-cool "$outname"                               \
+                                  --chrom-sizes '!{chrom_sizes}'                         \
+                                  --chrom-ranges '!{chrom_ranges}'                       \
                                   --assembly-name '!{assembly_name}'
         '''
 }
@@ -187,7 +187,7 @@ process run_modle {
 
 process run_openmm {
     cpus 1
-    label 'process_long'
+    label 'process_very_long'
 
     input:
         val chrom_name
@@ -261,12 +261,12 @@ process openmm_to_cool {
         out_name='GRCh38_H1_openmm_heatmaps_comparison.cool'
 
         '!{params.script_dir}/openmm/generate_contact_matrix.py' \
-            --input-folders ${input_folders[@]} \
-            --output-name "${out_name}.tmp"     \
-            --chrom-sizes '!{chrom_sizes}'      \
-            --bin-size !{monomer_size}          \
-            --chrom-names ${chrom_names[@]}     \
-            --threads $(( 2 * !{task.cpus} ))   \
+            --input-folders ${input_folders[@]}                  \
+            --output-name "${out_name}.tmp"                      \
+            --chrom-sizes '!{chrom_sizes}'                       \
+            --bin-size !{monomer_size}                           \
+            --chrom-names ${chrom_names[@]}                      \
+            --threads $(( 2 * !{task.cpus} ))                    \
             --offsets ${offsets[@]}
 
         cooler zoomify -r !{bin_size}              \
@@ -301,12 +301,12 @@ process subsample_contacts {
         out="$(basename "$out" .cool)_subsampled.cool"
 
         '!{params.script_dir}/subsample_contact_matrix.py' \
-                --ref-matrix '!{reference}'          \
-                --tgt-matrix '!{target}'             \
-                --bin-size '!{bin_size}'             \
-                --diagonal-width '!{diagonal_width}' \
-                --output "$out"                      \
-                --chrom-ranges-bed '!{chrom_ranges}' \
+                --ref-matrix '!{reference}'                \
+                --tgt-matrix '!{target}'                   \
+                --bin-size '!{bin_size}'                   \
+                --diagonal-width '!{diagonal_width}'       \
+                --output "$out"                            \
+                --chrom-ranges-bed '!{chrom_ranges}'       \
                 --threads $(( 2 * !{task.cpus} ))
         '''
 }
@@ -501,11 +501,11 @@ process dump_pixels {
         set -o pipefail
 
         '!{params.script_dir}/extract_pairs_of_pixels_from_cool.py' \
-            --ref-matrix '!{ref_cool}'                  \
-            --tgt-matrix '!{tgt_cool}'                  \
-            --chrom-ranges-bed '!{regions_of_interest}' \
-            --bin-size '!{resolution}'                  \
-            --diagonal-width '!{diagonal_width}'        |
+            --ref-matrix '!{ref_cool}'                              \
+            --tgt-matrix '!{tgt_cool}'                              \
+            --chrom-ranges-bed '!{regions_of_interest}'             \
+            --bin-size '!{resolution}'                              \
+            --diagonal-width '!{diagonal_width}'                    |
         gzip -9c > '!{out}'
 
         '''
