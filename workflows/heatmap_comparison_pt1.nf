@@ -134,6 +134,8 @@ workflow {
         filter_custom_scores(Channel.empty().mix(compute_custom_scores_py.out.vertical_scores,
                                                  compute_custom_scores_py.out.horizontal_scores),
                              file(params.extr_barriers))
+
+
 }
 
 process liftover_cool {
@@ -258,7 +260,7 @@ process openmm_to_cool {
 
         chrom_names=( $(echo '!{chrom_names}' | tr '[],' ' ') )
         offsets=( $(echo '!{offsets}' | tr '[],' ' ') )
-        out_name='GRCh38_H1_openmm_heatmaps_comparison.cool'
+        out_name='GRCh38_H1_openmm_heatmap_comparison.cool'
 
         '!{params.script_dir}/openmm/generate_contact_matrix.py' \
             --input-folders ${input_folders[@]}                  \
@@ -587,4 +589,24 @@ process filter_custom_scores {
         gzip -9 < '!{out}.tmp' > '!{out}'
         rm '!{out}.tmp'
         '''
+}
+
+
+process overlap_score_with_compartments {
+
+    input:
+        path horizontal_bw
+        path vertical_bw
+        path compartment_bw
+        path regions_of_interest
+
+
+    output:
+        path "foo"
+
+    shell:
+        '''
+
+        '''
+
 }

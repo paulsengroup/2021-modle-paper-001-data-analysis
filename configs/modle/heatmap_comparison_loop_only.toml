@@ -5,7 +5,7 @@
 [simulate]
 chrom-sizes="changeme"
 extrusion-barrier-file="changeme"
-output-prefix="GRCh38_H1_modle_heatmaps_comparison_loop_only"
+output-prefix="GRCh38_H1_modle_heatmap_comparison_loop_only"
 bin-size=5000
 target-contact-density=20.0
 lefs-per-mbp=20
