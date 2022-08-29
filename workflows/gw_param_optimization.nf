@@ -45,6 +45,23 @@ workflow {
                         params.optimization_method,
                         params.seed,
                         params.scoring_method)
+
+    cooler_zoomify_tar(run_gw_optimization.out.tar.flatten())
+
+    generate_modle_configs(file(params.chrom_sizes_file),
+                           file(params.extr_barrier_file),
+                           run_gw_optimization.out.summary_tsv
+                                              .filter { it.getBaseName().contains("_loop_only_") }
+                                              .flatten(),
+                           file(params.param_intervals_of_interest),
+                           params.target_contact_density_param_of_interest)
+
+    run_modle(file(params.chrom_sizes_file),
+              file(params.extr_barrier_file),
+              generate_modle_configs.out.configs.flatten())
+
+    cooler_zoomify(run_modle.out.cool)
+
 }
 
 process generate_training_and_test_sites {
@@ -210,5 +227,138 @@ process run_stripenn {
         mv tmpout/result_filtered.tsv "${out_prefix}_filtered.tsv"
         mv tmpout/result_unfiltered.tsv "${out_prefix}_unfiltered.tsv"
         mv tmpout/stripenn.log "${out_prefix}_stripenn.log"
+        '''
+}
+
+
+process cooler_zoomify_tar {
+    publishDir "${params.output_dir}/optimization", mode: 'copy',
+                                                    saveAs: { file(it).getBaseName() } // Trim .new
+
+    label 'process_medium'
+    label 'process_short'
+
+    input:
+        path tar
+
+    output:
+        path "*tar.new", emit: tar
+
+    shell:
+        '''
+        prefix="$(tar tf '!{tar}' | head -n 1)"
+        prefix="${prefix%/}"
+
+        tar -xf '!{tar}'
+
+        matrix="$prefix/$prefix.cool"
+        cooler zoomify -p !{task.cpus} -r N -o "$prefix/$prefix.mcool" "$matrix"
+
+        rm "$matrix"
+
+        tar -cf '!{tar}.new' "$prefix/"
+
+        if ! grep -q '\\.mcool$' <(tar tf '!{tar}.new'); then
+            echo "Tar archive does not contain any .mcool file"
+            exit 1
+        fi
+        '''
+}
+
+process generate_modle_configs {
+
+    label 'process_very_short'
+
+    input:
+        path chrom_sizes
+        path barriers
+        path optimization_report_tsv
+        path param_intervals
+        val target_contact_density
+
+    output:
+        path "*.toml", emit: configs
+
+    shell:
+        '''
+        #!/usr/bin/env python3
+
+        import pandas as pd
+
+        report = pd.read_table("!{optimization_report_tsv}")
+        param_intervals = pd.read_table("!{param_intervals}")
+
+        rows = []
+
+
+        for i, row in param_intervals.iterrows():
+            # Select param combinations falling in an interval of interest
+            df = report[(report["--extrusion-barrier-occupancy"].between(row["occ_lb"], row["occ_ub"])) & \\
+                        (report["--extrusion-barrier-not-bound-stp"].between(row["puu_lb"], row["puu_ub"]))]
+
+            # Take the param combination leading to the worst score
+            rows.append(df.sort_values(by=["training_score", "validation_score"]).tail(1))
+
+        # Add params for the overal best and worst scores
+        df = report.sort_values(by=["training_score", "validation_score"], ascending=False)
+        rows.append(df.head(1))
+        rows.append(df.tail(1))
+
+        df = pd.concat(rows).sort_values(by=["training_score", "validation_score"], ascending=False)
+
+        # Generate 1 MoDLE config for each param combination
+        for i, row in df.iterrows():
+            occ = row["--extrusion-barrier-occupancy"]
+            puu = row["--extrusion-barrier-not-bound-stp"]
+            score = row["training_score"]
+
+            config = ["[simulate]"]
+            config.append("chrom-sizes=\\"!{chrom_sizes}\\"")
+            config.append("extrusion-barrier-file=\\"!{barriers}\\"")
+            config.append(f"output-prefix=\\"gw_param_optimization_{score:.4f}_occ_{occ:.4f}_puu_{puu:.4f}\\"")
+            config.append("target-contact-density=!{target_contact_density}")
+            config.append(f"extrusion-barrier-occupancy={occ:.4f}")
+            config.append(f"extrusion-barrier-not-bound-stp={puu:.4f}")
+
+            with open(f"gw_param_optimization_{score:.4f}_occ_{occ:.4f}_puu_{puu:.4f}.toml", "w") as f:
+                print("\\n".join(config), file=f)
+        '''
+}
+
+process run_modle {
+    label 'process_medium'
+
+    input:
+        path chrom_sizes
+        path extrusion_barriers
+        path config
+
+    output:
+        path "*.cool", emit: cool
+        path config, emit: config
+        path "*.log", emit: log
+
+
+    shell:
+        '''
+        modle sim --config '!{config}' -t !{task.cpus}
+        '''
+}
+
+
+process cooler_zoomify {
+    publishDir "${params.output_dir}/mcools", mode: 'copy'
+
+    label 'process_medium'
+
+    input:
+        path cool
+
+    output:
+        path "*.mcool", emit: mcool
+
+    shell:
+        '''
+        cooler zoomify -p !{task.cpus} -r N '!{cool}'
         '''
 }
