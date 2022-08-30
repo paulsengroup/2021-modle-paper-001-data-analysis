@@ -48,15 +48,36 @@ workflow {
     convert_mast_to_bed(run_mast.out.txt_gz.collect(sort: { f1, f2 -> compare_basename(f1, f2) }).flatten(),
                         chrom_sizes_bed.flatten())
 
-    grch38_mast_bed = convert_mast_to_bed.out.bed_gz
-                                         .filter { it.getBaseName().startsWith(params.grch38_assembly_name_short) }
-                                         .first()
+    convert_mast_to_bed.out.bed_gz
+                       .branch {
+                            grch38: it.getBaseName().startsWith(params.grch38_assembly_name_short)
+                            grch37: it.getBaseName().startsWith(params.grch37_assembly_name_short)
+                            grcm38: it.getBaseName().startsWith(params.grcm38_assembly_name_short)
+                               }
+                       .set { mast_barriers_bed }
 
-    generate_extr_barriers_bed(grch38_mast_bed,
-                               file(params.h1_rad21_chip_fold_change),
-                               file(params.h1_ctcf_chip_peaks),
-                               file(params.h1_rad21_chip_peaks),
-                               "${params.grch38_assembly_name_short}_${params.cell_line_name}_barriers_RAD21_occupancy")
+    generate_extr_barriers_bed(Channel.of(file(params.h1_ctcf_chip_fold_change),
+                                          file(params.h1_rad21_chip_fold_change),
+                                          file(params.gm12878_ctcf_chip_fold_change),
+                                          file(params.gm12878_rad21_chip_fold_change))
+                                      .merge(
+                               Channel.empty()
+                                      .concat(mast_barriers_bed.grch38,
+                                              mast_barriers_bed.grch38,
+                                              mast_barriers_bed.grch37,
+                                              mast_barriers_bed.grch37).flatten(),
+                               Channel.of(file(params.h1_ctcf_chip_peaks),
+                                          file(params.h1_ctcf_chip_peaks),
+                                          file(params.gm12878_ctcf_chip_peaks),
+                                          file(params.gm12878_ctcf_chip_peaks)),
+                               Channel.of(file(params.h1_rad21_chip_peaks),
+                                          file(params.h1_rad21_chip_peaks),
+                                          file(params.gm12878_rad21_chip_peaks),
+                                          file(params.gm12878_rad21_chip_peaks)),
+                               Channel.of("${params.grch38_assembly_name_short}_${params.h1_cell_line_name}_barriers_CTCF_occupancy",
+                                          "${params.grch38_assembly_name_short}_${params.h1_cell_line_name}_barriers_RAD21_occupancy",
+                                          "${params.grch37_assembly_name_short}_${params.gm12878_cell_line_name}_barriers_CTCF_occupancy",
+                                          "${params.grch37_assembly_name_short}_${params.gm12878_cell_line_name}_barriers_RAD21_occupancy")))
 
     fixed_mcools = fix_mcool(Channel.fromPath(params.broken_mcools))
 
@@ -203,11 +224,11 @@ process generate_extr_barriers_bed {
     label 'process_short'
 
     input:
-        path ctcf_motifs_bed
-        path rad21_fold_change_bwig
-        path ctcf_chip_peaks_bed
-        path rad21_chip_peaks_bed
-        val bname
+        tuple path(fold_change_bwig),
+              path(ctcf_binding_sites_bed),
+              path(roi1_bed),
+              path(roi2_bed),
+              val(bname)
 
     output:
         path "${bname}.bed.gz", emit: bed_gz
@@ -215,11 +236,12 @@ process generate_extr_barriers_bed {
     shell:
         out="${bname}.bed.gz"
         '''
-        '!{params.script_dir}/convert_chip_signal_to_occupancy.py'  \
-                --chip-seq-bigwig '!{rad21_fold_change_bwig}'       \
-                --motifs-bed '!{ctcf_motifs_bed}'                   \
-                --regions-of-interest-bed '!{ctcf_chip_peaks_bed}'  \
-                                          '!{rad21_chip_peaks_bed}' |
+        set -o pipefail
+
+        '!{params.script_dir}/convert_chip_signal_to_occupancy.py'    \
+                --chip-seq-bigwig '!{fold_change_bwig}'               \
+                --motifs-bed '!{ctcf_binding_sites_bed}'              \
+                --regions-of-interest-bed '!{roi1_bed}' '!{roi2_bed}' |
                 gzip -9 > '!{out}'
         '''
 }
