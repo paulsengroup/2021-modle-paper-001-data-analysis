@@ -1,4 +1,8 @@
+https://www.encodeproject.org/files/ENCFF312KXX/@@download/ENCFF312KXX.bigWig	GRCh37_GM12878_CTCF_chip_fold_change.bigwig
+https://www.encodeproject.org/files/ENCFF710VEH/@@download/ENCFF710VEH.bed.gz	GRCh37_GM12878_CTCF_chip_narrow_peaks.bed.gz
 https://ftp.ncbi.nlm.nih.gov/geo/series/GSE63nnn/GSE63525/suppl/GSE63525_GM12878_insitu_primary%2Breplicate_combined.hic	GRCh37_GM12878_GSE63525_insitu.hic
+https://www.encodeproject.org/files/ENCFF567EGK/@@download/ENCFF567EGK.bigWig	GRCh37_GM12878_RAD21_chip_fold_change.bigwig
+https://www.encodeproject.org/files/ENCFF753RGL/@@download/ENCFF753RGL.bed.gz	GRCh37_GM12878_RAD21_chip_narrow_peaks.bed.gz
 https://ftp.ncbi.nlm.nih.gov/geo/series/GSE63nnn/GSE63525/suppl/GSE63525_HMEC_combined.hic	GRCh37_HMEC_GSE63525.hic
 https://ftp.ncbi.nlm.nih.gov/geo/series/GSE63nnn/GSE63525/suppl/GSE63525_HUVEC_combined.hic	GRCh37_HUVEC_GSE63525.hic
 https://ftp.ncbi.nlm.nih.gov/geo/series/GSE63nnn/GSE63525/suppl/GSE63525_IMR90_combined.hic	GRCh37_IMR90_GSE63525.hic
@@ -21,6 +25,7 @@ https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM2713nnn/GSM2713716/suppl/GSM2713716_
 https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM2713nnn/GSM2713719/suppl/GSM2713719_PL_HiC_E12_del1-13d9lac_txt.tar.gz	GRCm38_E12.5PL_del1-13d9lac.tar.gz
 https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM2713nnn/GSM2713721/suppl/GSM2713721_PL_HiC_E12_delattP-Rel5d9lac_txt.tar.gz	GRCm38_E12.5PL_delattP-Rel5d9lac.tar.gz
 https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM2713nnn/GSM2713717/suppl/GSM2713717_PL_HiC_E12_Wt_txt.tar.gz	GRCm38_E12.5PL_wt.tar.gz
+https://4dn-open-data-public.s3.amazonaws.com/fourfront-webprod/wfoutput/fd951289-11cf-4919-8105-816123555f76/4DNFINNZDDXV.mcool	GRCm38_JM8.N4_mESC_microc_4DNFINNZDDXV.mcool
 https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/000/001/635/GCF_000001635.26_GRCm38.p6/GCF_000001635.26_GRCm38.p6_assembly_report.txt	GRCm38_assembly_report.txt.gz
 https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/000/001/635/GCF_000001635.26_GRCm38.p6/GCF_000001635.26_GRCm38.p6_genomic.fna.gz	GRCm38_genome_assembly.fna.gz
 https://jaspar.genereg.net/download/data/2022/CORE.backup-20220211/JASPAR2022_CORE_non-redundant_pfms_meme.zip	JASPAR_2022_core.zip
