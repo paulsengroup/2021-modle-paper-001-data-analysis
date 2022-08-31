@@ -29,3 +29,9 @@ https://4dn-open-data-public.s3.amazonaws.com/fourfront-webprod/wfoutput/fd95128
 https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/000/001/635/GCF_000001635.26_GRCm38.p6/GCF_000001635.26_GRCm38.p6_assembly_report.txt	GRCm38_assembly_report.txt.gz
 https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/000/001/635/GCF_000001635.26_GRCm38.p6/GCF_000001635.26_GRCm38.p6_genomic.fna.gz	GRCm38_genome_assembly.fna.gz
 https://jaspar.genereg.net/download/data/2022/CORE.backup-20220211/JASPAR2022_CORE_non-redundant_pfms_meme.zip	JASPAR_2022_core.zip
+https://ftp.sra.ebi.ac.uk/vol1/fastq/SRR508/002/SRR5085152/SRR5085152.fastq.gz	SRR5085152.fq.gz
+https://ftp.sra.ebi.ac.uk/vol1/fastq/SRR508/003/SRR5085153/SRR5085153.fastq.gz	SRR5085153.fq.gz
+https://ftp.sra.ebi.ac.uk/vol1/fastq/SRR508/004/SRR5085154/SRR5085154.fastq.gz	SRR5085154.fq.gz
+https://ftp.sra.ebi.ac.uk/vol1/fastq/SRR508/005/SRR5085155/SRR5085155.fastq.gz	SRR5085155.fq.gz
+https://ftp.sra.ebi.ac.uk/vol1/fastq/SRR508/006/SRR5085156/SRR5085156.fastq.gz	SRR5085156.fq.gz
+https://ftp.sra.ebi.ac.uk/vol1/fastq/SRR508/007/SRR5085157/SRR5085157.fastq.gz	SRR5085157.fq.gz
