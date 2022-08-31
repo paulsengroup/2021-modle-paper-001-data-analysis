@@ -1,0 +1,18 @@
+{
+    "chip.title" : "PRJNA356611 - JM8.N4 CTCF",
+
+    "chip.pipeline_type" : "tf",
+    "chip.aligner" : "bowtie2",
+    "chip.align_only" : false,
+    "chip.true_rep_only" : false,
+
+    "chip.genome_tsv" : "https://storage.googleapis.com/encode-pipeline-genome-data/genome_tsv/v4/mm10.tsv",
+
+    "chip.paired_end" : false,
+
+    "chip.always_use_pooled_ctl" : true,
+
+    "chip.fastqs_rep1_R1" : [ "***datadir***/input/SRR5085156.fq.gz", "***datadir***/input/SRR5085157.fq.gz" ],
+
+    "chip.ctl_fastqs_rep1_R1" : [ "***datadir***/input/SRR5085152.fq.gz", "***datadir***/input/SRR5085153.fq.gz" ]
+}
