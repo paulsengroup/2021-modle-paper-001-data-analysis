@@ -91,76 +91,99 @@ def make_cli():
                      required=True)
     cli.add_argument("--max-num-generations",
                      default=1000,
-                     type=int)
+                     type=int,
+                     help="Maximum number of generations to simulate on mainland.")
     cli.add_argument("--pop-size",
                      default=256,
-                     type=int)
+                     type=int,
+                     help="Mainland population size.")
     cli.add_argument("--lambda",
                      default=512,
-                     type=int)
+                     type=int,
+                     help="Number of offsprings to generate each generation (mu,lambda evolution of mainland).")
     cli.add_argument("--pop-size-island",
                      default=128,
-                     type=int)
+                     type=int,
+                     help="Population size for island(s).")
     cli.add_argument("--lambda-island",
                      default=256,
-                     type=int)
+                     type=int,
+                     help="Number of offsprings to generate each generation (mu,lambda evolution of island(s)).")
     cli.add_argument("--cxpb",
                      default=0.15,
                      type=float,
-                     help="Crossover probability")
+                     help="Crossover probability.")
     cli.add_argument("--mutpb-individual",
                      default=0.85,
                      type=float,
-                     help="Individual mutation probability")
+                     help="Individual mutation probability.")
     cli.add_argument("--mutpb-locus",
                      default=0.1,
                      type=float,
-                     help="Locus mutation probability")
+                     help="Locus mutation probability.")
     cli.add_argument("--mut-sigma",
                      type=float,
-                     default=0.15)
+                     default=0.15,
+                     help="Standard deviation of the normal distribution used for random mutation.")
     cli.add_argument("--hof-size",
                      default=256,
                      type=int,
-                     help="Hall of fame size")
+                     help="Hall of fame size.")
     cli.add_argument("--seed",
                      default=1630986062,
                      type=int)
     cli.add_argument("--modle-exec",
                      default=shutil.which("modle"),
                      type=str,
-                     help="Path to modle executable")
+                     help="Path to MoDLE executable.")
     cli.add_argument("--modle-tools-exec",
                      default=shutil.which("modle_tools"),
                      type=str,
-                     help="Path to modle_tools executable")
+                     help="Path to MoDLE tools executable.")
     cli.add_argument("--initial-population",
                      type=str,
-                     help="Path to a .pickle file with the initial population.")
+                     help="Path to a .pickle of the population/hall_of_fame to use as initial mainland population")
     cli.add_argument("--ncells",
                      default=1,
-                     type=int)
+                     type=int,
+                     help="Number of MoDLE simulation instances or cells.")
     cli.add_argument("--occupancy-lb",
                      type=float,
-                     default=0.5)
+                     default=0.5,
+                     help="Extrusion occupancy threshold used to classify weak barriers.\n"
+                          "Barriers with occupancy below this threshold are considered weak.")
     cli.add_argument("--occupancy-ub",
                      type=float,
-                     default=0.975)
+                     default=0.975,
+                     help="Extrusion occupancy threshold used to classify very strong barriers.")
     cli.add_argument("--early-stopping-window",
                      default=25,
-                     type=int)
+                     type=int,
+                     help="Number of generations to consider for early-stopping.")
     cli.add_argument("--early-stopping-pct",
                      type=float,
-                     default=0.01)
-    cli.add_argument("--score-weight",
-                     type=float,
-                     default=-1.0)
+                     default=0.01,
+                     help="Percentange improvement used as eatly stopping criterion.\n"
+                          "Optimization is stopped early when the optimizer fails ro improve "
+                          "the avg. population score by at least --early-stopping-pct over the "
+                          "last --early-stopping-window generations.")
     cli.add_argument("--square-stripe-score-before-avg",
                      default=False,
-                     action="store_true")
+                     action="store_true",
+                     help="Square locus scores before computing the avg. score for an individual.")
     cli.add_argument("--num-islands",
                      type=int,
-                     default=6)
+                     default=6,
+                     help="Number of islands to simulate.\n"
+                          "Set to 0 to only simulate mainland.\n"
+                          "When this param is set to 1 the optimizer will simulate one island. Initial population of\n"
+                          "this island is generated by copying mainland pop, and setting PUU and occupancy of weak\n"
+                          "barriers to 1.0 and 0.0 respectively.\n"
+                          "When param is set to 2 or more, one island is simulated as described above, while the rest\n"
+                          "are simulated as follows. The initial pop is based on mainland population. Before starting\n"
+                          "the island optimization, a random chunk of barriers (avg. size of 25) is disabled, that is\n"
+                          "PUU and occupancy for these barriers is set to 1.0 and 0.0 respectively, and is not\n"
+                          "allowed to change throughout the island optimization.")
     cli.add_argument("--max-generations-per-island",
                      type=int,
                      default=150)
@@ -752,7 +775,7 @@ def simulate_island(island_id,
 
 
 def run_optimization(barrier_annotation, **kwargs):
-    assert int(kwargs.get("num_islands")) > 1
+    assert int(kwargs.get("num_islands")) >= 0
 
     max_num_generations = int(kwargs.get("max_num_generations"))
     hof_size = int(kwargs.get("hof_size"))
@@ -774,12 +797,12 @@ def run_optimization(barrier_annotation, **kwargs):
         hof = tools.HallOfFame(hof_size)
         history = tools.History()
         history.update(pop)
-        islands = None
+        islands = {}
         latest_score = np.inf
 
         while num_generations < max_num_generations:
             num_generations_left = max_num_generations - num_generations
-            if islands is not None:
+            if len(islands) != 0:
                 pop = migrate(pop, islands, kwargs.get("prng"))
 
             gen, pop, barrier_annotation, logbook, hof, history = simulate_mainland(
@@ -798,56 +821,63 @@ def run_optimization(barrier_annotation, **kwargs):
             num_generations = len(logbook)
             if num_generations == max_num_generations:
                 log.info(
-                    f"Terminating optimization as the maximum number of generations ({max_num_generations}) has been reached")
+                    f"Terminating optimization as the maximum number of generations ({max_num_generations}) "
+                    "has been reached")
                 break
 
             score_improvement = 1.0 - (current_score / latest_score)
             if score_improvement < score_improvement_thresh:
                 log.info(
-                    "Terminating optimization as the last batch of generations failed to significantly improve the avg, score "
-                    f"({score_improvement:.4f} < {score_improvement_thresh:.4f})")
+                    "Terminating optimization as the last batch of generations failed to significantly improve the avg "
+                    f"score ({score_improvement:.4f} < {score_improvement_thresh:.4f})")
                 break
             latest_score = current_score
 
+            if num_islands == 0:
+                break
+
             islands = {}
-            for island_id in tuple(range(island_id, island_id + num_islands - 1)):
-                mask, isl_pop = mask_barriers_random(pop, kwargs.get("prng"))
+            if num_islands > 1:
+                for island_id in tuple(range(island_id, island_id + num_islands - 1)):
+                    mask, isl_pop = mask_barriers_random(pop, kwargs.get("prng"))
 
-                isl_toolbox = init_toolbox(barrier_annotation, pool.map, mask=mask, **kwargs)
-                isl_hof = tools.HallOfFame(hof_size)
+                    isl_toolbox = init_toolbox(barrier_annotation, pool.map, mask=mask, **kwargs)
+                    isl_hof = tools.HallOfFame(hof_size)
 
-                _, isl_pop, _, isl_logbook, isl_hof, _ = simulate_island(island_id,
-                                                                         barrier_annotation,
-                                                                         isl_toolbox,
-                                                                         isl_pop,
-                                                                         mu=int(kwargs.get("pop_size_island")),
-                                                                         lambda_=int(kwargs.get("lambda_island")),
-                                                                         hof=isl_hof,
-                                                                         max_num_gens=int(
-                                                                             kwargs.get("max_generations_per_island")),
-                                                                         stats=init_stats(f"island_{island_id:03d}",
-                                                                                          np.sum(~mask)),
-                                                                         **kwargs)
-                islands[island_id] = isl_pop
+                    _, isl_pop, _, isl_logbook, isl_hof, _ = simulate_island(island_id,
+                                                                             barrier_annotation,
+                                                                             isl_toolbox,
+                                                                             isl_pop,
+                                                                             mu=int(kwargs["pop_size_island"]),
+                                                                             lambda_=int(kwargs["lambda_island"]),
+                                                                             hof=isl_hof,
+                                                                             max_num_gens=int(
+                                                                                 kwargs["max_generations_per_island"]),
+                                                                             stats=init_stats(f"island_{island_id:03d}",
+                                                                                              np.sum(~mask)),
+                                                                             **kwargs)
+                    islands[island_id] = isl_pop
 
-                write_optimization_state(args.get("output_prefix") + f"_island_{island_id:03d}", isl_pop, isl_logbook,
-                                         isl_hof)
+                    write_optimization_state(args.get("output_prefix") + f"_island_{island_id:03d}",
+                                             isl_pop,
+                                             isl_logbook,
+                                             isl_hof)
 
             isl_pop = mask_weak_barriers(pop, occ_threshold=kwargs.get("occupancy_lb"))
             isl_toolbox = init_toolbox(barrier_annotation, pool.map, mask=None, **kwargs)
             isl_hof = tools.HallOfFame(hof_size)
 
             island_id += 1
-            _, isl_pop, _, _, _, _ = simulate_island(island_id,
-                                                     barrier_annotation,
-                                                     isl_toolbox,
-                                                     isl_pop,
-                                                     mu=int(kwargs.get("pop_size_island")),
-                                                     lambda_=int(kwargs.get("lambda_island")),
-                                                     hof=isl_hof,
-                                                     max_num_gens=int(kwargs.get("max_generations_per_island")),
-                                                     stats=init_stats(f"island_{island_id:03d}", 0),
-                                                     **kwargs)
+            _, isl_pop, _, isl_logbook, isl_hof, _ = simulate_island(island_id,
+                                                                     barrier_annotation,
+                                                                     isl_toolbox,
+                                                                     isl_pop,
+                                                                     mu=int(kwargs["pop_size_island"]),
+                                                                     lambda_=int(kwargs["lambda_island"]),
+                                                                     hof=isl_hof,
+                                                                     max_num_gens=int(kwargs["max_generations_per_island"]),
+                                                                     stats=init_stats(f"island_{island_id:03d}", 0),
+                                                                     **kwargs)
             islands[island_id] = isl_pop
             write_optimization_state(args.get("output_prefix") + f"_island_{island_id:03d}", isl_pop, isl_logbook,
                                      isl_hof)
@@ -868,7 +898,7 @@ def migrate(mainland_pop, islands, prng, fraction=0.5):
     old_pop = mainland_pop.copy()
     old_pop.sort()
 
-    weights = np.max(weights) - np.array(weights)
+    weights = np.finfo(float).eps + np.max(weights) - np.array(weights)
     weights = weights / np.sum(weights)
     sample_size = int(round(len(mainland_pop) * fraction))
     idx = prng.choice(len(island_pops), size=sample_size, replace=False, p=weights)
@@ -1075,10 +1105,8 @@ if __name__ == "__main__":
     args["prng"] = np.random.default_rng(int(args.get("seed")))
     random.seed(int(args.get("seed")))
 
-    weights = [float(args.get("score_weight")), ]
-
     BarrierT = namedtuple("BarrierT", ["puu", "occ"])
-    creator.create("FitnessMulti", base.Fitness, weights=weights)
+    creator.create("FitnessMulti", base.Fitness, weights=(-1.0, ))
     creator.create("Individual", list, fitness=creator.FitnessMulti)
 
     out_prefix = args.get("output_prefix")
