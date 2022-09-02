@@ -59,25 +59,35 @@ workflow {
     generate_extr_barriers_bed(Channel.of(file(params.h1_ctcf_chip_fold_change),
                                           file(params.h1_rad21_chip_fold_change),
                                           file(params.gm12878_ctcf_chip_fold_change),
-                                          file(params.gm12878_rad21_chip_fold_change))
+                                          file(params.gm12878_rad21_chip_fold_change),
+                                          file(params.jm8n4_ctcf_chip_fold_change),
+                                          file(params.jm8n4_rad21_chip_fold_change))
                                       .merge(
                                Channel.empty()
                                       .concat(mast_barriers_bed.grch38,
                                               mast_barriers_bed.grch38,
                                               mast_barriers_bed.grch37,
-                                              mast_barriers_bed.grch37).flatten(),
+                                              mast_barriers_bed.grch37,
+                                              mast_barriers_bed.grcm38,
+                                              mast_barriers_bed.grcm38).flatten(),
                                Channel.of(file(params.h1_ctcf_chip_peaks),
                                           file(params.h1_ctcf_chip_peaks),
                                           file(params.gm12878_ctcf_chip_peaks),
-                                          file(params.gm12878_ctcf_chip_peaks)),
+                                          file(params.gm12878_ctcf_chip_peaks),
+                                          file(params.jm8n4_ctcf_chip_peaks),
+                                          file(params.jm8n4_ctcf_chip_peaks)),
                                Channel.of(file(params.h1_rad21_chip_peaks),
                                           file(params.h1_rad21_chip_peaks),
                                           file(params.gm12878_rad21_chip_peaks),
-                                          file(params.gm12878_rad21_chip_peaks)),
+                                          file(params.gm12878_rad21_chip_peaks),
+                                          file(params.jm8n4_rad21_chip_peaks),
+                                          file(params.jm8n4_rad21_chip_peaks)),
                                Channel.of("${params.grch38_assembly_name_short}_${params.h1_cell_line_name}_barriers_CTCF_occupancy",
                                           "${params.grch38_assembly_name_short}_${params.h1_cell_line_name}_barriers_RAD21_occupancy",
                                           "${params.grch37_assembly_name_short}_${params.gm12878_cell_line_name}_barriers_CTCF_occupancy",
-                                          "${params.grch37_assembly_name_short}_${params.gm12878_cell_line_name}_barriers_RAD21_occupancy")))
+                                          "${params.grch37_assembly_name_short}_${params.gm12878_cell_line_name}_barriers_RAD21_occupancy",
+                                          "${params.grcm38_assembly_name_short}_${params.jm8n4_cell_line_name}_barriers_CTCF_occupancy",
+                                          "${params.grcm38_assembly_name_short}_${params.jm8n4_cell_line_name}_barriers_RAD21_occupancy")))
 
     fixed_mcools = fix_mcool(Channel.fromPath(params.broken_mcools))
 
