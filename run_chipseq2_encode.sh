@@ -80,17 +80,16 @@ wait
 for config in "${configs[@]}"; do
     wd="$(dirname "$config")"
     hash="$(grep -o 'workflow [[:alnum:]-]\+ submitted' "$wd/cromwell.out"* |
-        sed -E 's/(workflow|submitted) *//g' | tail -n 1)"
-    metadata="$(grep -F "$hash" "$wd/cromwell.out"* |
-        grep -F cidfile |
-        head -n 1 |
-        sed -E "s|.*cidfile=(.*$hash/).*|\1|")/metadata.json"
+        sed -E 's/ *(workflow|submitted) *//g' | tail -n 1)"
+    metadata="$wd/chip/$hash/metadata.json"
     croo --method=copy --out-dir "$wd" "$metadata"
 
-    bwig="$(grep -F 'fold-enrichment' "$wd"/croo.filetable.*.tsv | rev | cut -f 2 | rev)"
+    bwig="$(grep -F 'fold-enrichment' "$wd/croo.filetable.$hash.tsv" | rev | cut -f 2 | rev)"
+    narrowpeak="$(grep 'Blacklist-filtered.*narrowpeak.*merged.*regionPeak.gz' "$wd/croo.filetable.$hash.tsv" | grep -v "Pseudoreplicate" | rev | cut -f 2 | rev)"
 
     mkdir -p data/hoxd_encode_chip
-    cp "$bwig" "data/hoxd_encode_chip/$(basename "$config" .json)_fold_change.bw"
+    cp "$bwig" "data/output/hoxd_encode_chip/$(basename "$config" .json)_fold_change.bigwig"
+    cp "$narrowpeak" "data/output/hoxd_encode_chip/$(basename "$config" .json)_narrow_peaks.bed.gz"
 done
 
 ls -lah "data/hoxd_encode_chip/"
