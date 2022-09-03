@@ -7,11 +7,9 @@ nextflow.enable.dsl=2
 
 workflow {
     optimization_params = \
-        Channel.of(params.hoxd_wt_cell_line,
-                   params.idh_wt_cell_line)
-               .merge(
         Channel.of(file(params.chrom_sizes_hoxd),
-                   file(params.chrom_sizes_idh)),
+                   file(params.chrom_sizes_idh))
+        .merge(
         Channel.of(file(params.regions_of_interest_hoxd),
                    file(params.regions_of_interest_idh)),
         Channel.of(file(params.candidate_barriers_hoxd),
@@ -29,8 +27,9 @@ workflow {
         Channel.of(file(params.hoxd_wt_hic),
                    file(params.idh_wt_hic)))
 
-
-    optimize_extrusion_barriers_001(optimization_params,
+    optimize_extrusion_barriers_001(Channel.of("${params.hoxd_wt_cell_line}_001",
+                                               "${params.idh_wt_cell_line}_001"),
+                                    optimization_params,
                                     params.modle_low_sigma,
                                     params.modle_sigma_mult,
                                     params.modle_discr_thresh,
@@ -39,7 +38,9 @@ workflow {
                                     params.mutpb_locus_001,
                                     params.mutsigma_001)
 
-    optimize_extrusion_barriers_002(optimization_params,
+    optimize_extrusion_barriers_002(Channel.of("${params.hoxd_wt_cell_line}_002",
+                                               "${params.idh_wt_cell_line}_002"),
+                                    optimization_params,
                                     params.modle_low_sigma,
                                     params.modle_sigma_mult,
                                     params.modle_discr_thresh,
@@ -49,18 +50,7 @@ workflow {
                                     params.mutpb_locus_002,
                                     params.mutsigma_002)
 
-    optimize_extrusion_barriers_003(optimization_params,
-                                    params.modle_low_sigma,
-                                    params.modle_sigma_mult,
-                                    params.modle_discr_thresh,
-                                    optimize_extrusion_barriers_002.out.result,
-                                    params.cxpb_003,
-                                    params.mutpb_ind_003,
-                                    params.mutpb_locus_003,
-                                    params.mutsigma_003)
-
-
-    optimize_extrusion_barriers_003.out.optimized_barriers
+    optimize_extrusion_barriers_002.out.optimized_barriers
                                    .branch {
                                        hoxd: it.contains(params.hoxd_wt_cell_line)
                                        idh: it.contains(params.idh_wt_cell_line)
@@ -76,24 +66,25 @@ workflow {
                                                file(params.idh_mut_rearr)))
 
     extr_barriers = Channel.empty()
-                           .mix(optimize_extrusion_barriers_003.out.optimized_barriers,
+                           .mix(optimize_extrusion_barriers_002.out.optimized_barriers,
                                 generate_mut_barrier_annotation.out.bed)
 
-    extr_barriers.map {
-                        if (it.contains(params.hoxd_wt_cell_line)) {
-                            return file(params.chrom_sizes_hoxd)
-                        }
-                        return file(params.chrom_sizes_idh)
-                      }
-                 .set { chrom_sizes }
 
-    extr_barriers.map {
-                        if (it.contains(params.hoxd_wt_cell_line)) {
-                            return file(params.regions_of_interest_hoxd)
-                        }
-                        return file(params.regions_of_interest_idh)
-                      }
-                 .set { regions_of_interest }
+    chrom_sizes = extr_barriers.map {
+        if (it.getBaseName().startsWith(params.hoxd_wt_cell_line)) {
+            return file(params.chrom_sizes_hoxd)
+        }
+        assert it.getBaseName().startsWith(params.idh_wt_cell_line)
+        return file(params.chrom_sizes_idh)
+    }
+
+    regions_of_interest = extr_barriers.map {
+        if (it.getBaseName().startsWith(params.hoxd_wt_cell_line)) {
+            return file(params.regions_of_interest_hoxd)
+        }
+        assert it.getBaseName().startsWith(params.idh_wt_cell_line)
+        return file(params.regions_of_interest_idh)
+    }
 
     run_modle_sim(file(params.modle_config),
                   chrom_sizes,
@@ -105,14 +96,14 @@ workflow {
 }
 
 process optimize_extrusion_barriers_001 {
-    publishDir "${params.output_dir}/optimized_barriers/001", mode: 'copy'
+    publishDir "${params.output_dir}/optimized_barriers", mode: 'copy'
 
     label 'process_very_high'
     label 'process_very_long'
-
     input:
-        tuple val(basename),
-              path(chrom_sizes),
+        val basename
+
+        tuple path(chrom_sizes),
               path(regions_of_interest),
               path(extr_barriers),
               val(bin_size),
@@ -135,7 +126,6 @@ process optimize_extrusion_barriers_001 {
         path "*_extrusion_barriers.bed.gz", emit: optimized_barriers
         path "*.tar.gz", emit: result
         path "*.log", emit: log
-
 
     shell:
         '''
@@ -161,6 +151,7 @@ process optimize_extrusion_barriers_001 {
             --mutpb-locus !{mutpb_locus} \
             --mut-sigma !{mutsigma} |& tee '!{basename}.log'
 
+        find . -type f -name "*.fifo" -delete
         cp '!{basename}/!{basename}_extrusion_barriers.bed.gz' .
         tar -czf '!{basename}.tar.gz' '!{basename}'
         rm -r '!{basename}'
@@ -168,14 +159,15 @@ process optimize_extrusion_barriers_001 {
 }
 
 process optimize_extrusion_barriers_002 {
-    publishDir "${params.output_dir}/optimized_barriers/002", mode: 'copy'
+    publishDir "${params.output_dir}/optimized_barriers", mode: 'copy'
 
     label 'process_very_high'
     label 'process_very_long'
 
     input:
-        tuple val(basename),
-              path(chrom_sizes),
+        val basename
+
+        tuple path(chrom_sizes),
               path(regions_of_interest),
               path(extr_barriers),
               val(bin_size),
@@ -203,15 +195,15 @@ process optimize_extrusion_barriers_002 {
 
     shell:
         '''
-        mkdir previous
-        tar -xf '!{previous_simulation_tar}' -C previous --strip-components 1
-
-        barriers='previous/!{basename}_extrusion_barriers.bed.gz'
-        initial_pop='previous/!{basename}_mainland_hall_of_fame.pickle'
+        tar -xvf '!{previous_simulation_tar}' --wildcards \
+                                              --no-anchored \
+                                              --strip-components=1 \
+                                              '*mainland_hall_of_fame.pickle'
+        ln -s *.pickle initial_pop.pickle
 
         '!{params.script_dir}/optimize_extrusion_barrier_params_islands.py' \
             --bin-size '!{bin_size}' \
-            --extrusion-barriers "$barriers" \
+            --extrusion-barriers '!{extr_barriers}' \
             --output-prefix '!{basename}/!{basename}' \
             --chrom-sizes '!{chrom_sizes}' \
             --chrom-subranges '!{regions_of_interest}' \
@@ -224,83 +216,14 @@ process optimize_extrusion_barriers_002 {
             --gaussian-blur-sigma-tgt '!{gaussian_blur_sigma_tgt}' \
             --gaussian-blur-sigma-multiplier-tgt '!{gaussian_blur_mult_tgt}' \
             --discretization-thresh-tgt '!{discretization_thresh_tgt}' \
-            --initial-population "$initial_pop" \
+            --initial-population initial_pop.pickle \
             --num-islands=1 \
             --cxpb !{cxpb} \
             --mutpb-individual !{mutpb_individual} \
             --mutpb-locus !{mutpb_locus} \
             --mut-sigma !{mutsigma} |& tee '!{basename}.log'
 
-        cp '!{basename}/!{basename}_extrusion_barriers.bed.gz' .
-        tar -czf '!{basename}.tar.gz' '!{basename}'
-        rm -r '!{basename}'
-        '''
-}
-
-process optimize_extrusion_barriers_003 {
-    publishDir "${params.output_dir}/optimized_barriers/003", mode: 'copy'
-
-    label 'process_very_high'
-    label 'process_very_long'
-
-    input:
-        tuple val(basename),
-              path(chrom_sizes),
-              path(regions_of_interest),
-              path(extr_barriers),
-              val(bin_size),
-              val(target_contact_density),
-              val(gaussian_blur_sigma_ref),
-              val(gaussian_blur_mult_ref),
-              val(discretization_thresh_ref),
-              path(reference_matrix)
-
-        val gaussian_blur_sigma_tgt
-        val gaussian_blur_mult_tgt
-        val discretization_thresh_tgt
-
-        path previous_simulation_tar
-
-        val cxpb
-        val mutpb_individual
-        val mutpb_locus
-        val mutsigma
-
-    output:
-        path "*_extrusion_barriers.bed.gz", emit: optimized_barriers
-        path "*.tar.gz", emit: result
-        path "*.log", emit: log
-
-    shell:
-        '''
-        mkdir previous
-        tar -xf '!{previous_simulation_tar}' -C previous --strip-components 1
-
-        barriers='previous/!{basename}_extrusion_barriers.bed.gz'
-        initial_pop='previous/!{basename}_mainland_hall_of_fame.pickle'
-
-        '!{params.script_dir}/optimize_extrusion_barrier_params_islands.py' \
-            --bin-size '!{bin_size}' \
-            --extrusion-barriers "$barriers" \
-            --output-prefix '!{basename}/!{basename}' \
-            --chrom-sizes '!{chrom_sizes}' \
-            --chrom-subranges '!{regions_of_interest}' \
-            --target-contact-density '!{target_contact_density}' \
-            --nthreads '!{task.cpus}' \
-            --reference-matrix '!{reference_matrix}' \
-            --gaussian-blur-sigma-ref '!{gaussian_blur_sigma_ref}' \
-            --gaussian-blur-sigma-multiplier-ref '!{gaussian_blur_mult_ref}' \
-            --discretization-thresh-ref '!{discretization_thresh_ref}' \
-            --gaussian-blur-sigma-tgt '!{gaussian_blur_sigma_tgt}' \
-            --gaussian-blur-sigma-multiplier-tgt '!{gaussian_blur_mult_tgt}' \
-            --discretization-thresh-tgt '!{discretization_thresh_tgt}' \
-            --initial-population "$initial_pop" \
-            --num-islands=1 \
-            --cxpb !{cxpb} \
-            --mutpb-individual !{mutpb_individual} \
-            --mutpb-locus !{mutpb_locus} \
-            --mut-sigma !{mutsigma} |& tee '!{basename}.log'
-
+        find . -type f -name "*.fifo" -delete
         cp '!{basename}/!{basename}_extrusion_barriers.bed.gz' .
         tar -czf '!{basename}.tar.gz' '!{basename}'
         rm -r '!{basename}'
@@ -346,9 +269,10 @@ process run_modle_sim {
 
     output:
         path "*.cool", emit: cool
+        path "*.log", emit: log
 
     shell:
-        out_prefix=extr_barriers.getSimpleName()
+        out_prefix=extr_barriers - /\.bed(!?\.gz)$/
         '''
         modle sim --config '!{config}'                       \
                   -c '!{chrom_sizes}'                        \
