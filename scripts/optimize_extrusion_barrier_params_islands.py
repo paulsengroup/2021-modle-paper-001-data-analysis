@@ -330,7 +330,7 @@ def run_modle_sim(barrier_annotation,
     attempts_left = 5
     while True:
         try:
-            run_subprocess(cmd, timeout=30, attempts=0)
+            run_subprocess(cmd, timeout=60, attempts=0)
             barrier_writer.join(timeout=0.1)
             assert not barrier_writer.is_alive()
             break
@@ -744,9 +744,9 @@ def simulate_island(island_id,
     else:
         logfile = kwargs.get("output_prefix") + f"_isl{island_id:03d}.log"
 
-    def stopping_fx(avg_scores, score_stds):
-        return run_early_stopping_check(avg_scores=avg_scores,
-                                        score_std=score_stds[-1],
+    def stopping_fx(pop, avg_scores):
+        return run_early_stopping_check(pop=pop,
+                                        avg_scores=avg_scores,
                                         offset=early_stopping_offset,
                                         window=kwargs.get("early_stopping_window"),
                                         improvement_thresh=kwargs.get("early_stopping_pct"))
@@ -862,12 +862,12 @@ def run_optimization(barrier_annotation, **kwargs):
                                              isl_pop,
                                              isl_logbook,
                                              isl_hof)
+                island_id += 1
 
             isl_pop = mask_weak_barriers(pop, occ_threshold=kwargs.get("occupancy_lb"))
             isl_toolbox = init_toolbox(barrier_annotation, pool.map, mask=None, **kwargs)
             isl_hof = tools.HallOfFame(hof_size)
 
-            island_id += 1
             _, isl_pop, _, isl_logbook, isl_hof, _ = simulate_island(island_id,
                                                                      barrier_annotation,
                                                                      isl_toolbox,
@@ -898,10 +898,10 @@ def migrate(mainland_pop, islands, prng, fraction=0.5):
     old_pop = mainland_pop.copy()
     old_pop.sort()
 
-    weights = np.finfo(float).eps + np.max(weights) - np.array(weights)
+    weights = np.finfo(float).eps + (np.max(weights) - np.array(weights))
     weights = weights / np.sum(weights)
     sample_size = int(round(len(mainland_pop) * fraction))
-    idx = prng.choice(len(island_pops), size=sample_size, replace=False, p=weights)
+    idx = prng.choice(len(island_pops), size=sample_size, replace=True, p=weights)
     return old_pop[:-sample_size] + [island_pops[i] for i in idx]
 
 
@@ -975,6 +975,10 @@ def init_stats(label, num_barriers_masked):
     stats.register("min_score", lambda pop: np.min([ind.fitness.values[0] for ind in pop]))
     stats.register("max_score", lambda pop: np.max([ind.fitness.values[0] for ind in pop]))
 
+    stats.register("occ_std_avg", lambda pop: np.mean(compute_pop_variability(pop)[1]))
+    stats.register("occ_std_min", lambda pop: np.min(compute_pop_variability(pop)[1]))
+    stats.register("occ_std_max", lambda pop: np.max(compute_pop_variability(pop)[1]))
+
     stats.register("occ_lt01", lambda pop: compute_fraction_of_barriers_with_occ_in_range(pop, 0.0, 0.01))
     stats.register("occ_0_50", lambda pop: compute_fraction_of_barriers_with_occ_in_range(pop, 0.0, 0.5))
     stats.register("occ_50_60", lambda pop: compute_fraction_of_barriers_with_occ_in_range(pop, 0.5, 0.6))
@@ -993,14 +997,29 @@ def init_logbook(stats):
     return logbook
 
 
-def run_early_stopping_check(avg_scores, score_std, window, improvement_thresh, offset=0, std_threshold=0.05):
+def compute_pop_variability(pop):
+    occs = np.empty([len(pop), len(pop[0])])
+    puus = np.empty([len(pop), len(pop[0])])
+
+    for i, ind in enumerate(pop):
+        occs[i] = get_occupancies_from_individual(ind)
+        puus[i] = get_puus_from_individual(ind)
+
+    return np.std(puus, axis=0), np.std(occs, axis=0)
+
+
+def run_early_stopping_check(pop, avg_scores, window, improvement_thresh, offset=0, std_threshold=0.05):
     assert offset <= len(avg_scores), f"{offset} > {len(avg_scores)}"
-    if score_std < std_threshold:
-        log.info(f"Stopping as score variability is very low (std={score_std:.4f})")
-        return True
 
     if len(avg_scores) - offset <= window:
         return False
+
+    _, occs_std = compute_pop_variability(pop)
+
+    if np.max(occs_std) < std_threshold:
+        log.info(f"Stopping as population variability is very low (avg_std={np.mean(occs_std):.4f}; "
+                 f"min_std={np.min(occs_std):.4f}; max_std={np.max(occs_std):.4f})")
+        return True
 
     def compute_improvement_pct(vect, how="minimize", offset=offset, window=window):
         if how == "minimize":
@@ -1076,8 +1095,8 @@ def ea_mu_comma_lambda(population, toolbox, mu, lambda_, cxpb, mutpb, max_ngen, 
             with open(logfile, "a") as f:
                 print(logbook.stream, file=f)
 
-        if stopping_criterion(logbook.select("avg_score"),
-                              logbook.select("std_score")):
+        if stopping_criterion(population,
+                              logbook.select("avg_score")):
             break
 
     return gen, population, logbook
