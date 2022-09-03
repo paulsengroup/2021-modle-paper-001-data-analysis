@@ -5,7 +5,11 @@ https://www.encodeproject.org/files/ENCFF567EGK/@@download/ENCFF567EGK.bigWig	GR
 https://www.encodeproject.org/files/ENCFF753RGL/@@download/ENCFF753RGL.bed.gz	GRCh37_GM12878_RAD21_chip_narrow_peaks.bed.gz
 https://ftp.ncbi.nlm.nih.gov/geo/series/GSE63nnn/GSE63525/suppl/GSE63525_HMEC_combined.hic	GRCh37_HMEC_GSE63525.hic
 https://ftp.ncbi.nlm.nih.gov/geo/series/GSE63nnn/GSE63525/suppl/GSE63525_HUVEC_combined.hic	GRCh37_HUVEC_GSE63525.hic
+https://www.encodeproject.org/files/ENCFF603PYX/@@download/ENCFF603PYX.bigWig	GRCh37_IMR90_CTCF_chip_fold_change.bigwig
+https://www.encodeproject.org/files/ENCFF453XKM/@@download/ENCFF453XKM.bed.gz	GRCh37_IMR90_CTCF_chip_narrow_peaks.bed.gz
 https://ftp.ncbi.nlm.nih.gov/geo/series/GSE63nnn/GSE63525/suppl/GSE63525_IMR90_combined.hic	GRCh37_IMR90_GSE63525.hic
+https://www.encodeproject.org/files/ENCFF603SRS/@@download/ENCFF603SRS.bigWig	GRCh37_IMR90_RAD21_chip_fold_change.bigwig
+https://www.encodeproject.org/files/ENCFF195CYT/@@download/ENCFF195CYT.bed.gz	GRCh37_IMR90_RAD21_chip_narrow_peaks.bed.gz
 https://ftp.ncbi.nlm.nih.gov/geo/series/GSE63nnn/GSE63525/suppl/GSE63525_K562_combined.hic	GRCh37_K562_GSE63525.hic
 https://ftp.ncbi.nlm.nih.gov/geo/series/GSE63nnn/GSE63525/suppl/GSE63525_NHEK_combined.hic	GRCh37_NHEK_GSE63525.hic
 https://ftp.ncbi.nlm.nih.gov/genomes/all/annotation_releases/9606/105.20201022/GCF_000001405.25_GRCh37.p13/GCF_000001405.25_GRCh37.p13_assembly_report.txt	GRCh37_assembly_report.txt.gz
