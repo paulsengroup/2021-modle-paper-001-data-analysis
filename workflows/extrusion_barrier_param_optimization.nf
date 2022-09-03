@@ -27,6 +27,7 @@ workflow {
 
     optimize_extrusion_barriers_002("GRCh38_H1_optimized_barriers_microc_002",
                                     file(params.chrom_sizes),
+                                    file(params.candidate_barriers),
                                     file(params.regions_of_interest),
                                     params.bin_size,
                                     params.target_contact_density,
@@ -46,6 +47,7 @@ workflow {
 
     optimize_extrusion_barriers_003("GRCh38_H1_optimized_barriers_microc_003",
                                     file(params.chrom_sizes),
+                                    file(params.candidate_barriers),
                                     file(params.regions_of_interest),
                                     params.bin_size,
                                     params.target_contact_density,
@@ -131,6 +133,7 @@ process optimize_extrusion_barriers_001 {
             --early-stopping-pct=0.025 \
             --mut-sigma !{mutsigma} |& tee '!{basename}.log'
 
+        find . -type f -name "*.fifo" -delete
         cp '!{basename}/!{basename}_extrusion_barriers.bed.gz' .
         tar -czf '!{basename}.tar.gz' '!{basename}'
         rm -r '!{basename}'
@@ -146,6 +149,7 @@ process optimize_extrusion_barriers_002 {
     input:
         val basename
         path chrom_sizes
+        path extr_barriers
         path regions_of_interest
         val bin_size
         val target_contact_density
@@ -174,15 +178,15 @@ process optimize_extrusion_barriers_002 {
 
     shell:
         '''
-        mkdir previous
-        tar -xf '!{previous_simulation_tar}' -C previous --strip-components 1
-
-        barriers='previous/!{basename}_extrusion_barriers.bed.gz'
-        initial_pop='previous/!{basename}_mainland_hall_of_fame.pickle'
+        tar -xvf '!{previous_simulation_tar}' --wildcards \
+                                              --no-anchored \
+                                              --strip-components=1 \
+                                              '*mainland_hall_of_fame.pickle'
+        ln -s *.pickle initial_pop.pickle
 
         '!{params.script_dir}/optimize_extrusion_barrier_params_islands.py' \
             --bin-size '!{bin_size}' \
-            --extrusion-barriers "$barriers" \
+            --extrusion-barriers '!{extr_barriers}' \
             --output-prefix '!{basename}/!{basename}' \
             --chrom-sizes '!{chrom_sizes}' \
             --chrom-subranges '!{regions_of_interest}' \
@@ -195,13 +199,14 @@ process optimize_extrusion_barriers_002 {
             --gaussian-blur-sigma-tgt '!{gaussian_blur_sigma_tgt}' \
             --gaussian-blur-sigma-multiplier-tgt '!{gaussian_blur_mult_tgt}' \
             --discretization-thresh-tgt '!{discretization_thresh_tgt}' \
-            --initial-population "$initial_pop" \
+            --initial-population initial_pop.pickle \
             --num-islands=!{num_islands} \
             --cxpb !{cxpb} \
             --mutpb-individual !{mutpb_individual} \
             --mutpb-locus !{mutpb_locus} \
             --mut-sigma !{mutsigma} |& tee '!{basename}.log'
 
+        find . -type f -name "*.fifo" -delete
         cp '!{basename}/!{basename}_extrusion_barriers.bed.gz' .
         tar -czf '!{basename}.tar.gz' '!{basename}'
         rm -r '!{basename}'
@@ -217,6 +222,7 @@ process optimize_extrusion_barriers_003 {
     input:
         val basename
         path chrom_sizes
+        path extr_barriers
         path regions_of_interest
         val bin_size
         val target_contact_density
@@ -245,15 +251,15 @@ process optimize_extrusion_barriers_003 {
 
     shell:
         '''
-        mkdir previous
-        tar -xf '!{previous_simulation_tar}' -C previous --strip-components 1
-
-        barriers='previous/!{basename}_extrusion_barriers.bed.gz'
-        initial_pop='previous/!{basename}_mainland_hall_of_fame.pickle'
+        tar -xvf '!{previous_simulation_tar}' --wildcards \
+                                              --no-anchored \
+                                              --strip-components=1 \
+                                              '*mainland_hall_of_fame.pickle'
+        ln -s *.pickle initial_pop.pickle
 
         '!{params.script_dir}/optimize_extrusion_barrier_params_islands.py' \
             --bin-size '!{bin_size}' \
-            --extrusion-barriers "$barriers" \
+            --extrusion-barriers '!{extr_barriers}' \
             --output-prefix '!{basename}/!{basename}' \
             --chrom-sizes '!{chrom_sizes}' \
             --chrom-subranges '!{regions_of_interest}' \
@@ -266,13 +272,14 @@ process optimize_extrusion_barriers_003 {
             --gaussian-blur-sigma-tgt '!{gaussian_blur_sigma_tgt}' \
             --gaussian-blur-sigma-multiplier-tgt '!{gaussian_blur_mult_tgt}' \
             --discretization-thresh-tgt '!{discretization_thresh_tgt}' \
-            --initial-population "$initial_pop" \
+            --initial-population initial_pop.pickle \
             --num-islands=!{num_islands} \
             --cxpb !{cxpb} \
             --mutpb-individual !{mutpb_individual} \
             --mutpb-locus !{mutpb_locus} \
             --mut-sigma !{mutsigma} |& tee '!{basename}.log'
 
+        find . -type f -name "*.fifo" -delete
         cp '!{basename}/!{basename}_extrusion_barriers.bed.gz' .
         tar -czf '!{basename}.tar.gz' '!{basename}'
         rm -r '!{basename}'
@@ -292,6 +299,7 @@ process run_modle_sim {
 
     output:
         path "*.cool", emit: cool
+        path "*.log", emit: log
 
     shell:
         out_prefix=extr_barriers.getSimpleName()
