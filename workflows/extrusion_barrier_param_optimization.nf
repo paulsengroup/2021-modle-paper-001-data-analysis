@@ -65,12 +65,28 @@ workflow {
                                     params.mutpb_locus_003,
                                     params.mutsigma_003)
 
-    run_modle_sim(file(params.microc_modle_config),
-                  file(params.chrom_sizes),
-                  optimize_extrusion_barriers_003.out.optimized_barriers,
-                  file(params.regions_of_interest))
+    run_modle_sim_on_optimized_barriers(file(params.microc_modle_config),
+                                        file(params.chrom_sizes),
+                                        optimize_extrusion_barriers_003.out.optimized_barriers,
+                                        file(params.regions_of_interest))
 
-    cooler_zoomify(run_modle_sim.out.cool)
+    run_modle_sim_on_hof(file(params.microc_modle_config),
+                         file(params.chrom_sizes),
+                         optimize_extrusion_barriers_003.out.optimized_barriers,
+                         file(params.regions_of_interest),
+                         optimize_extrusion_barriers_003.out.result)
+
+    cooler_merge(run_modle_sim_on_hof.out.cool.collect())
+
+    cooler_zoomify(Channel.empty()
+                          .mix(run_modle_sim_on_optimized_barriers.out.cool,
+                               run_modle_sim_on_hof.out.cool,
+                               cooler_merge.out.cool).flatten())
+
+    normalize_occs_by_puus(optimize_extrusion_barriers_003.out.optimized_barriers)
+    convert_occ_to_chip_like_signal(file(params.chrom_sizes),
+                                    normalize_occs_by_puus.out.bed,
+                                    params.bin_size)
 }
 
 process optimize_extrusion_barriers_001 {
@@ -133,7 +149,7 @@ process optimize_extrusion_barriers_001 {
             --early-stopping-pct=0.025 \
             --mut-sigma !{mutsigma} |& tee '!{basename}.log'
 
-        find . -type f -name "*.fifo" -delete
+        find . -name "*.fifo" -delete
         cp '!{basename}/!{basename}_extrusion_barriers.bed.gz' .
         tar -czf '!{basename}.tar.gz' '!{basename}'
         rm -r '!{basename}'
@@ -206,7 +222,7 @@ process optimize_extrusion_barriers_002 {
             --mutpb-locus !{mutpb_locus} \
             --mut-sigma !{mutsigma} |& tee '!{basename}.log'
 
-        find . -type f -name "*.fifo" -delete
+        find . -name "*.fifo" -delete
         cp '!{basename}/!{basename}_extrusion_barriers.bed.gz' .
         tar -czf '!{basename}.tar.gz' '!{basename}'
         rm -r '!{basename}'
@@ -279,14 +295,65 @@ process optimize_extrusion_barriers_003 {
             --mutpb-locus !{mutpb_locus} \
             --mut-sigma !{mutsigma} |& tee '!{basename}.log'
 
-        find . -type f -name "*.fifo" -delete
+        find . -name "*.fifo" -delete
         cp '!{basename}/!{basename}_extrusion_barriers.bed.gz' .
         tar -czf '!{basename}.tar.gz' '!{basename}'
         rm -r '!{basename}'
         '''
 }
 
-process run_modle_sim {
+process run_modle_sim_on_hof {
+    publishDir "${params.output_dir}/simulations/", mode: 'copy'
+    label 'process_medium'
+
+    input:
+        path config
+        path chrom_sizes
+        path extr_barriers
+        path regions_of_interest
+
+        path optimization_result_tar
+
+    output:
+        path "*.cool", emit: cool
+        path "*.bw", emit: bw
+        path "*.log", emit: log
+        path "*.bed.gz", emit: barriers
+
+    shell:
+        '''
+        tar -xvf '!{optimization_result_tar}' --wildcards \
+                                              --no-anchored \
+                                              --strip-components=1 \
+                                              '*mainland_hall_of_fame.pickle'
+
+        ln -s *.pickle hof.pickle
+
+        mkdir annotations/
+
+        outprefix='annotations/!{optimization_result_tar}'
+        outprefix="${outprefix%.tar.gz}"
+        '!{params.script_dir}/generate_barrier_annotations_from_gaopt_pop.py' \
+            -o "$outprefix" \
+            '!{extr_barriers}' hof.pickle
+
+        for annotation in annotations/*.bed.gz; do
+            modle sim --config '!{config}'                       \
+                      -c '!{chrom_sizes}'                        \
+                      -b "$annotation"                           \
+                      --chrom-subranges '!{regions_of_interest}' \
+                      -t !{task.cpus}                            \
+                      --target-contact-density 5.0               \
+                      -o "${annotation%.bed.gz}"
+        done
+
+        mv annotations/* .
+        '''
+}
+
+
+process run_modle_sim_on_optimized_barriers {
+    publishDir "${params.output_dir}/simulations/", mode: 'copy'
 
     label 'process_medium'
 
@@ -299,6 +366,7 @@ process run_modle_sim {
 
     output:
         path "*.cool", emit: cool
+        path "*.bw", emit: bw
         path "*.log", emit: log
 
     shell:
@@ -329,5 +397,68 @@ process cooler_zoomify {
     shell:
         '''
         cooler zoomify -p !{task.cpus} -r N '!{cool}'
+        '''
+}
+
+process cooler_merge {
+    input:
+        path coolers
+
+    output:
+        path "*ensemble.cool", emit: cool
+
+    shell:
+        '''
+        outname="$(printf '%s\\n' *.cool | head -n 1 | sed -E 's/_hof.*//')_hof_ensemble.cool"
+
+        cooler merge "$outname" *.cool
+        '''
+}
+
+process normalize_occs_by_puus {
+    publishDir "${params.output_dir}/optimized_barriers", mode: 'copy'
+
+    input:
+        path barriers
+
+    output:
+        path "*.bed.gz", emit: bed
+
+    shell:
+        outname="${barriers.BaseName}_normalized.bed.gz"
+        '''
+        '!{params.script_dir}/normalize_barrier_occupancies_by_puu.py' \
+            '!{barriers}' | gzip -9 > '!{outname}'
+        '''
+}
+
+process convert_occ_to_chip_like_signal {
+    publishDir "${params.output_dir}/optimized_barriers", mode: 'copy'
+
+    input:
+        path chrom_sizes
+        path barriers
+        val bin_size
+
+    output:
+        path "*.bed.gz", emit: bed
+        path "*.bw", emit: bigwig
+
+    shell:
+        outprefix=barriers.getSimpleName()
+        '''
+        '!{params.script_dir}/convert_occupancy_to_chip_signal.py' \
+            -o '!{outprefix}' \
+            --clamp \
+            '!{chrom_sizes}' '!{barriers}'
+
+        '!{params.script_dir}/convert_occupancy_to_chip_signal.py' \
+            --bin-signal \
+            --bin-size !{bin_size} \
+            --clamp \
+            -o '!{outprefix}_!{bin_size}' \
+            '!{chrom_sizes}' '!{barriers}'
+
+            echo foo1
         '''
 }
