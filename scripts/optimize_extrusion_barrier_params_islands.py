@@ -425,33 +425,35 @@ def run_modle_tools_eval(path_to_reference_matrix, path_to_target_matrix, tmp_ou
 
 
 def import_scores_from_bwigs(horizontal_bwig, vertical_bwig, genomic_coords):
-    scores = []
+    hscores = []
+    vscores = []
     with pyBigWig.open(horizontal_bwig) as h_bw, pyBigWig.open(vertical_bwig) as v_bw:
         # Fill scores vector
         for (_, (chrom, start, end, _, _, strand)) in genomic_coords.iterrows():
-            if strand == "-":
-                scores.append(v_bw.stats(chrom, int(start), int(end), exact=True)[0])
-            else:
-                assert strand == "+"
-                scores.append(h_bw.stats(chrom, int(start), int(end), exact=True)[0])
+            vscores.append(v_bw.stats(chrom, int(start), int(end), exact=True)[0])
+            hscores.append(h_bw.stats(chrom, int(start), int(end), exact=True)[0])
 
     # Drop nan and inf values
-    scores = np.array(scores, dtype=float)
-    return scores[(~np.isnan(scores)) & (~np.isinf(scores))]
+    hscores = np.array(hscores, dtype=float)
+    vscores = np.array(vscores, dtype=float)
+
+    return hscores[(~np.isnan(hscores)) & (~np.isinf(hscores))], vscores[(~np.isnan(vscores)) & (~np.isinf(vscores))]
 
 
-def compute_stripe_similarity(eval_sites, barrier_params, horizontal_bwig, vertical_bwig, bin_size, diagonal_width,
+def compute_stripe_similarity(eval_sites, penalties, horizontal_bwig, vertical_bwig, bin_size, diagonal_width,
                               square_scores):
-    scores = import_scores_from_bwigs(horizontal_bwig, vertical_bwig, eval_sites)
+    hscores, vscores = import_scores_from_bwigs(horizontal_bwig, vertical_bwig, eval_sites)
 
-    if len(scores) == 0:
-        return 2 * (diagonal_width // bin_size)
+    if len(hscores) == 0 or len(vscores) == 0:
+        return [2 * (diagonal_width // bin_size)] * 2
 
-    scores = scores * (1.0 + barrier_params)
+    hscores = hscores * (1.0 + penalties)
+    vscores = vscores * (1.0 + penalties)
     if square_scores:
-        return np.sqrt(np.average(scores ** 2))
+        hscores = np.sqrt(np.average(hscores ** 2))
+        vscores = np.sqrt(np.average(vscores ** 2))
 
-    return np.average(scores)
+    return np.average(np.concatenate([hscores, vscores]))
 
 
 def compute_penalties(barrier_params, occ_lb, occ_ub, exp=10):
@@ -853,8 +855,9 @@ def run_optimization(barrier_annotation, **kwargs):
                                                                              hof=isl_hof,
                                                                              max_num_gens=int(
                                                                                  kwargs["max_generations_per_island"]),
-                                                                             stats=init_stats(f"island_{island_id:03d}",
-                                                                                              np.sum(~mask)),
+                                                                             stats=init_stats(
+                                                                                 f"island_{island_id:03d}",
+                                                                                 np.sum(~mask)),
                                                                              **kwargs)
                     islands[island_id] = isl_pop
 
@@ -875,7 +878,8 @@ def run_optimization(barrier_annotation, **kwargs):
                                                                      mu=int(kwargs["pop_size_island"]),
                                                                      lambda_=int(kwargs["lambda_island"]),
                                                                      hof=isl_hof,
-                                                                     max_num_gens=int(kwargs["max_generations_per_island"]),
+                                                                     max_num_gens=int(
+                                                                         kwargs["max_generations_per_island"]),
                                                                      stats=init_stats(f"island_{island_id:03d}", 0),
                                                                      **kwargs)
             islands[island_id] = isl_pop
@@ -1008,7 +1012,7 @@ def compute_pop_variability(pop):
     return np.std(puus, axis=0), np.std(occs, axis=0)
 
 
-def run_early_stopping_check(pop, avg_scores, window, improvement_thresh, offset=0, std_threshold=0.05):
+def run_early_stopping_check(pop, avg_scores, window, improvement_thresh, offset=0, std_threshold=0.01):
     assert offset <= len(avg_scores), f"{offset} > {len(avg_scores)}"
 
     if len(avg_scores) - offset <= window:
@@ -1125,7 +1129,7 @@ if __name__ == "__main__":
     random.seed(int(args.get("seed")))
 
     BarrierT = namedtuple("BarrierT", ["puu", "occ"])
-    creator.create("FitnessMulti", base.Fitness, weights=(-1.0, ))
+    creator.create("FitnessMulti", base.Fitness, weights=(-1.0,))
     creator.create("Individual", list, fitness=creator.FitnessMulti)
 
     out_prefix = args.get("output_prefix")
