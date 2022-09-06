@@ -1,0 +1,249 @@
+{
+  "editable": true,
+  "zoomFixed": false,
+  "trackSourceServers": [
+    "/api/v1"
+  ],
+  "exportViewUrl": "/api/v1/viewconfs/",
+  "views": [
+    {
+      "tracks": {
+        "top": [
+          {
+            "filetype": "chromsizes-tsv",
+            "server": "http://localhost:9000/api/v1",
+            "tilesetUid": "e9d00096-de77-2cd6-d7c2-d3b1bed60838",
+            "uid": "VFQQSqPlTHi2yd1xkPY03w",
+            "type": "chromosome-labels",
+            "options": {
+              "color": "#808080",
+              "stroke": "#ffffff",
+              "fontSize": 12,
+              "fontIsLeftAligned": false,
+              "showMousePosition": false,
+              "mousePositionColor": "#000000",
+              "reverseOrientation": false
+            },
+            "width": 3037,
+            "height": 30
+          },
+          {
+            "filetype": "cooler",
+            "server": "http://localhost:9000/api/v1",
+            "tilesetUid": "b7a70f36-30a5-cc41-0a80-13c2bf31032d",
+            "uid": "C9VCc23sQ3Oge4z13_TKKQ",
+            "type": "linear-heatmap",
+            "options": {
+              "backgroundColor": "#eeeeee",
+              "labelPosition": "bottomRight",
+              "labelLeftMargin": 0,
+              "labelRightMargin": 0,
+              "labelTopMargin": 0,
+              "labelBottomMargin": 0,
+              "labelShowResolution": true,
+              "labelShowAssembly": true,
+              "labelColor": "black",
+              "colorRange": [
+                "white",
+                "rgba(245,166,35,1.0)",
+                "rgba(208,2,27,1.0)",
+                "black"
+              ],
+              "maxZoom": null,
+              "minWidth": 100,
+              "minHeight": 40,
+              "trackBorderWidth": 0,
+              "trackBorderColor": "black",
+              "name": "GRCh38_H1_hESC_hic_4DNFIFJH2524_fixed",
+              "colorbarPosition": "topRight",
+              "scaleStartPercent": "0.00000",
+              "scaleEndPercent": "1.00000"
+            },
+            "width": 100,
+            "height": 175,
+            "transforms": [
+              {
+                "name": "ICE",
+                "value": "weight"
+              }
+            ]
+          },
+          {
+            "filetype": "cooler",
+            "server": "http://localhost:9000/api/v1",
+            "tilesetUid": "665b78c5-8afe-16b0-a851-fbbfaffe2933",
+            "uid": "Gfcb1sQOT4aV2AJ5uTSPUA",
+            "type": "linear-heatmap",
+            "options": {
+              "backgroundColor": "#eeeeee",
+              "labelPosition": "bottomRight",
+              "labelLeftMargin": 0,
+              "labelRightMargin": 0,
+              "labelTopMargin": 0,
+              "labelBottomMargin": 0,
+              "labelShowResolution": true,
+              "labelShowAssembly": true,
+              "labelColor": "black",
+              "colorRange": [
+                "white",
+                "rgba(245,166,35,1.0)",
+                "rgba(208,2,27,1.0)",
+                "black"
+              ],
+              "maxZoom": null,
+              "minWidth": 100,
+              "minHeight": 40,
+              "trackBorderWidth": 0,
+              "trackBorderColor": "black",
+              "name": "GRCh38_H1_hESC_microC_4DNFI9GMP2J8_fixed",
+              "colorbarPosition": "topRight",
+              "scaleStartPercent": "0.00000",
+              "scaleEndPercent": "1.00000"
+            },
+            "width": 100,
+            "height": 175,
+            "transforms": [
+              {
+                "name": "ICE",
+                "value": "weight"
+              }
+            ]
+          },
+          {
+            "filetype": "cooler",
+            "server": "http://localhost:9000/api/v1",
+            "tilesetUid": "e702ed87-3263-8920-8b16-1247e892e198",
+            "uid": "Job2TY8ETH--inNrfiz6vQ",
+            "type": "linear-heatmap",
+            "options": {
+              "backgroundColor": "#eeeeee",
+              "labelPosition": "bottomRight",
+              "labelLeftMargin": 0,
+              "labelRightMargin": 0,
+              "labelTopMargin": 0,
+              "labelBottomMargin": 0,
+              "labelShowResolution": true,
+              "labelShowAssembly": true,
+              "labelColor": "black",
+              "colorRange": [
+                "white",
+                "rgba(245,166,35,1.0)",
+                "rgba(208,2,27,1.0)",
+                "black"
+              ],
+              "maxZoom": null,
+              "minWidth": 100,
+              "minHeight": 40,
+              "trackBorderWidth": 0,
+              "trackBorderColor": "black",
+              "name": "GRCh38_H1_modle_heatmap_comparison_tad_plus_loop_subsampled",
+              "colorbarPosition": "topRight",
+              "scaleStartPercent": "0.00000",
+              "scaleEndPercent": "1.00000"
+            },
+            "width": 100,
+            "height": 175,
+            "transforms": []
+          },
+          {
+            "filetype": "cooler",
+            "server": "http://localhost:9000/api/v1",
+            "tilesetUid": "f2fc2549-790f-834a-fc42-a5720d3a243c",
+            "uid": "B0vtHhKtTsaCyN7UqjQGyQ",
+            "type": "linear-heatmap",
+            "options": {
+              "backgroundColor": "#eeeeee",
+              "labelPosition": "bottomRight",
+              "labelLeftMargin": 0,
+              "labelRightMargin": 0,
+              "labelTopMargin": 0,
+              "labelBottomMargin": 0,
+              "labelShowResolution": true,
+              "labelShowAssembly": true,
+              "labelColor": "black",
+              "colorRange": [
+                "white",
+                "rgba(245,166,35,1.0)",
+                "rgba(208,2,27,1.0)",
+                "black"
+              ],
+              "maxZoom": null,
+              "minWidth": 100,
+              "minHeight": 40,
+              "trackBorderWidth": 0,
+              "trackBorderColor": "black",
+              "name": "GRCh38_H1_openmm_heatmap_comparison_subsampled",
+              "colorbarPosition": "topRight",
+              "scaleStartPercent": "0.00000",
+              "scaleEndPercent": "1.00000"
+            },
+            "width": 100,
+            "height": 175,
+            "transforms": []
+          }
+        ],
+        "left": [],
+        "center": [],
+        "right": [],
+        "bottom": [
+          {
+            "filetype": "chromsizes-tsv",
+            "server": "http://localhost:9000/api/v1",
+            "tilesetUid": "Ex9uXTO_S5uD0Q04wVccJQ",
+            "uid": "JdM6kbt0RPCGu9mnbbZHbg",
+            "type": "chromosome-labels",
+            "options": {
+              "color": "#808080",
+              "stroke": "#ffffff",
+              "fontSize": 12,
+              "fontIsLeftAligned": false,
+              "showMousePosition": false,
+              "mousePositionColor": "#000000",
+              "reverseOrientation": false
+            },
+            "width": 3037,
+            "height": 50
+          }
+        ],
+        "whole": [],
+        "gallery": []
+      },
+      "initialXDomain": [
+        528785598.51932555,
+        531095903.49645364
+      ],
+      "initialYDomain": [
+        891667732.634653,
+        891667732.634653
+      ],
+      "layout": {
+        "w": 12,
+        "h": 12,
+        "x": 0,
+        "y": 0,
+        "moved": false,
+        "static": false
+      },
+      "uid": "RM0iieLqT2m-aN-3mwRiCw",
+      "genomePositionSearchBoxVisible": true,
+      "genomePositionSearchBox": {
+        "autocompleteServer": "http://higlass.io/api/v1",
+        "chromInfoServer": "http://higlass.io/api/v1",
+        "visible": true,
+        "chromInfoId": "hg38"
+      }
+    }
+  ],
+  "zoomLocks": {
+    "locksByViewUid": {},
+    "locksDict": {}
+  },
+  "locationLocks": {
+    "locksByViewUid": {},
+    "locksDict": {}
+  },
+  "valueScaleLocks": {
+    "locksByViewUid": {},
+    "locksDict": {}
+  }
+}
