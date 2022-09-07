@@ -1,8 +1,8 @@
-diff -crB a/stripenn-1.1.65.7/src/cli.py b/stripenn-1.1.65.7/src/cli.py
-*** a/stripenn-1.1.65.7/src/cli.py	2022-07-03 20:18:37.000000000 +0200
---- b/stripenn-1.1.65.7/src/cli.py	2022-09-07 13:56:16.862188812 +0200
+diff -crB a/src/cli.py b/stripenn-1.1.65.7/src/cli.py
+*** a/src/cli.py	2022-07-03 20:18:37.000000000 +0200
+--- b/stripenn-1.1.65.7/src/cli.py	2022-09-07 22:12:37.697176221 +0200
 ***************
-*** 21,27 ****
+*** 21,31 ****
       pvalue: float = typer.Option(0.1,  '--pvalue','-p', help='P-value cutoff for stripe.'),
       mask: str = typer.Option('0', "--mask", help='Column coordinates to be masked. e.g., chr9:12345678-12345789'),
       slow: bool= typer.Option(False,"-s", help='Use if system memory is low.'),
@@ -10,7 +10,11 @@ diff -crB a/stripenn-1.1.65.7/src/cli.py b/stripenn-1.1.65.7/src/cli.py
   ):
       """Finds stripe coordinates from 3D genomic data
       """
---- 21,28 ----
+!     stripenn.compute(cool, out, norm, chrom, canny, minL, maxW, maxpixel, numcores, pvalue, mask, slow, bfilter)
+
+  @app.command('seeimage')
+  def seeimag(
+--- 21,32 ----
       pvalue: float = typer.Option(0.1,  '--pvalue','-p', help='P-value cutoff for stripe.'),
       mask: str = typer.Option('0', "--mask", help='Column coordinates to be masked. e.g., chr9:12345678-12345789'),
       slow: bool= typer.Option(False,"-s", help='Use if system memory is low.'),
@@ -19,8 +23,29 @@ diff -crB a/stripenn-1.1.65.7/src/cli.py b/stripenn-1.1.65.7/src/cli.py
   ):
       """Finds stripe coordinates from 3D genomic data
       """
-diff -crB a/stripenn-1.1.65.7/src/getStripe.py b/stripenn-1.1.65.7/src/getStripe.py
-*** a/stripenn-1.1.65.7/src/getStripe.py	2022-02-25 19:28:02.000000000 +0100
+!     stripenn.compute(cool, out, norm, chrom, canny, minL, maxW, maxpixel, numcores, pvalue, mask, slow, bfilter, seed)
+
+  @app.command('seeimage')
+  def seeimag(
+***************
+*** 35,41 ****
+          out: str = typer.Option('./heatmap.png', "--out", "-o", help="Path to output directory"),
+          norm: str = typer.Option('KR',"--norm",help="Normalization method. It should be one of the column name of Cooler.bin(). Check it with Cooler.bins().columns (e.g., KR, VC, VC_SQRT)"),
+          slow: bool= typer.Option(False,'-s' , help='Use if system memory is low.')
+!
+  ):
+      """ Draws heatmap image of given position and color saturation parameter (maxpixel).
+      """
+--- 36,42 ----
+          out: str = typer.Option('./heatmap.png', "--out", "-o", help="Path to output directory"),
+          norm: str = typer.Option('KR',"--norm",help="Normalization method. It should be one of the column name of Cooler.bin(). Check it with Cooler.bins().columns (e.g., KR, VC, VC_SQRT)"),
+          slow: bool= typer.Option(False,'-s' , help='Use if system memory is low.')
+!
+  ):
+      """ Draws heatmap image of given position and color saturation parameter (maxpixel).
+      """
+diff -crB a/src/getStripe.py b/stripenn-1.1.65.7/src/getStripe.py
+*** a/src/getStripe.py	2022-02-25 19:28:02.000000000 +0100
 --- b/stripenn-1.1.65.7/src/getStripe.py	2022-09-07 13:56:16.852188788 +0200
 ***************
 *** 16,22 ****
@@ -100,8 +125,8 @@ diff -crB a/stripenn-1.1.65.7/src/getStripe.py b/stripenn-1.1.65.7/src/getStripe
                           tableft_up = np.zeros((400, depl))
                           tabcenter_up = np.zeros((400, depl))
                           tabright_up = np.zeros((400, depl))
-diff -crB a/stripenn-1.1.65.7/src/stripenn.py b/stripenn-1.1.65.7/src/stripenn.py
-*** a/stripenn-1.1.65.7/src/stripenn.py	2022-02-24 19:49:29.000000000 +0100
+diff -crB a/src/stripenn.py b/stripenn-1.1.65.7/src/stripenn.py
+*** a/src/stripenn.py	2022-02-24 19:49:29.000000000 +0100
 --- b/stripenn-1.1.65.7/src/stripenn.py	2022-09-07 13:56:16.862188812 +0200
 ***************
 *** 63,69 ****

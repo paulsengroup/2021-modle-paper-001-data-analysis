@@ -20,9 +20,10 @@ RUN apt-get update \
 COPY containers/patches/stripenn*.patch /tmp
 
 RUN cd /tmp \
-&& patch -p1 \
+&& cat stripenn-*.fix_prng_seed.patch \
+|  patch -p1 \
          --ignore-whitespace \
-         --fuzz 3 < stripenn-*.fix_prng_seed.patch \
+         --fuzz 3 \
 && touch stripenn-1.1.65.7/README.md
 
 
