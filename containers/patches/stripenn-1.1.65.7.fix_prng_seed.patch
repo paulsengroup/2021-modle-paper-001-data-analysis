@@ -1,0 +1,139 @@
+diff -crB a/stripenn-1.1.65.7/src/cli.py b/stripenn-1.1.65.7/src/cli.py
+*** a/stripenn-1.1.65.7/src/cli.py	2022-07-03 20:18:37.000000000 +0200
+--- b/stripenn-1.1.65.7/src/cli.py	2022-09-07 13:56:16.862188812 +0200
+***************
+*** 21,27 ****
+      pvalue: float = typer.Option(0.1,  '--pvalue','-p', help='P-value cutoff for stripe.'),
+      mask: str = typer.Option('0', "--mask", help='Column coordinates to be masked. e.g., chr9:12345678-12345789'),
+      slow: bool= typer.Option(False,"-s", help='Use if system memory is low.'),
+!     bfilter: int=typer.Option(3,"--bfilter",'-b',help="Mean filter size. should be an odd number")
+  ):
+      """Finds stripe coordinates from 3D genomic data
+      """
+--- 21,28 ----
+      pvalue: float = typer.Option(0.1,  '--pvalue','-p', help='P-value cutoff for stripe.'),
+      mask: str = typer.Option('0', "--mask", help='Column coordinates to be masked. e.g., chr9:12345678-12345789'),
+      slow: bool= typer.Option(False,"-s", help='Use if system memory is low.'),
+!     bfilter: int=typer.Option(3,"--bfilter",'-b',help="Mean filter size. should be an odd number"),
+!     seed: int=typer.Option(123456789, "--seed", help="Seed used to initialize the PRNG.")
+  ):
+      """Finds stripe coordinates from 3D genomic data
+      """
+diff -crB a/stripenn-1.1.65.7/src/getStripe.py b/stripenn-1.1.65.7/src/getStripe.py
+*** a/stripenn-1.1.65.7/src/getStripe.py	2022-02-25 19:28:02.000000000 +0100
+--- b/stripenn-1.1.65.7/src/getStripe.py	2022-09-07 13:56:16.852188788 +0200
+***************
+*** 16,22 ****
+  from tqdm import tqdm
+
+  class getStripe:
+!     def __init__(self, unbalLib, resol, minH, maxW, canny, all_chromnames, chromnames, all_chromsizes, chromsizes, core, bfilter):
+          self.unbalLib = unbalLib
+          self.resol = resol
+          self.minH = minH
+--- 16,22 ----
+  from tqdm import tqdm
+
+  class getStripe:
+!     def __init__(self, unbalLib, resol, minH, maxW, canny, all_chromnames, chromnames, all_chromsizes, chromsizes, core, bfilter, seed):
+          self.unbalLib = unbalLib
+          self.resol = resol
+          self.minH = minH
+***************
+*** 28,33 ****
+--- 28,34 ----
+          self.chromsizes = chromsizes
+          self.core = core
+          self.bfilter = bfilter
++         self.prng = random.Random(seed)
+          self.chromnames2sizes={}
+          for i in range(len(self.all_chromnames)):
+              self.chromnames2sizes[self.all_chromnames[i]] = self.all_chromsizes[i]
+***************
+*** 337,343 ****
+                          if len(pool) == 0:
+                              del mat
+                          elif len(pool) < sss:
+!                             randval = random.choices(pool, k=len(pool))
+                              tableft_up = np.zeros((400, len(pool)))
+                              tabcenter_up = np.zeros((400, len(pool)))
+                              tabright_up = np.zeros((400, len(pool)))
+--- 340,346 ----
+                          if len(pool) == 0:
+                              del mat
+                          elif len(pool) < sss:
+!                             randval = self.prng.choices(pool, k=len(pool))
+                              tableft_up = np.zeros((400, len(pool)))
+                              tabcenter_up = np.zeros((400, len(pool)))
+                              tabright_up = np.zeros((400, len(pool)))
+***************
+*** 379,385 ****
+
+                              del mat
+                          else:
+!                             randval = random.choices(pool, k=sss)
+                              tableft_up = np.zeros((400, sss))
+                              tabcenter_up = np.zeros((400, sss))
+                              tabright_up = np.zeros((400, sss))
+--- 382,388 ----
+
+                              del mat
+                          else:
+!                             randval = self.prng.choices(pool, k=sss)
+                              tableft_up = np.zeros((400, sss))
+                              tabcenter_up = np.zeros((400, sss))
+                              tabright_up = np.zeros((400, sss))
+***************
+*** 437,443 ****
+                          zeroindex = np.where(matsum == 0)
+                          pool = [x for x in list(range(nrow)) if x not in zeroindex[0].tolist()]
+                          pool = [x for x in pool if x > 20 and x < (unitsize - 20)]
+!                         randval = random.choices(pool, k=depl)
+                          tableft_up = np.zeros((400, depl))
+                          tabcenter_up = np.zeros((400, depl))
+                          tabright_up = np.zeros((400, depl))
+--- 440,446 ----
+                          zeroindex = np.where(matsum == 0)
+                          pool = [x for x in list(range(nrow)) if x not in zeroindex[0].tolist()]
+                          pool = [x for x in pool if x > 20 and x < (unitsize - 20)]
+!                         randval = self.prng.choices(pool, k=depl)
+                          tableft_up = np.zeros((400, depl))
+                          tabcenter_up = np.zeros((400, depl))
+                          tabright_up = np.zeros((400, depl))
+diff -crB a/stripenn-1.1.65.7/src/stripenn.py b/stripenn-1.1.65.7/src/stripenn.py
+*** a/stripenn-1.1.65.7/src/stripenn.py	2022-02-24 19:49:29.000000000 +0100
+--- b/stripenn-1.1.65.7/src/stripenn.py	2022-09-07 13:56:16.862188812 +0200
+***************
+*** 63,69 ****
+      outfile.close()
+
+
+! def compute(cool, out, norm, chrom, canny, minL, maxW, maxpixel, numcores, pvalue, mask, slow, bfilter):
+      np.seterr(divide='ignore', invalid='ignore')
+      t_start = time.time()
+      if out[-1] != '/':
+--- 63,69 ----
+      outfile.close()
+
+
+! def compute(cool, out, norm, chrom, canny, minL, maxW, maxpixel, numcores, pvalue, mask, slow, bfilter, seed):
+      np.seterr(divide='ignore', invalid='ignore')
+      t_start = time.time()
+      if out[-1] != '/':
+***************
+*** 119,125 ****
+
+      unbalLib = Lib.matrix(balance=norm)
+      resol = Lib.binsize
+!     obj = getStripe.getStripe(unbalLib, resol, minH, maxW, canny, all_chromnames, chromnames, all_chromsizes, chromsizes,core, bfilter)
+      print('1. Maximum pixel value calculation ...')
+      if slow:
+          print("1.1 Slowly estimating Maximum pixel values...")
+--- 119,125 ----
+
+      unbalLib = Lib.matrix(balance=norm)
+      resol = Lib.binsize
+!     obj = getStripe.getStripe(unbalLib, resol, minH, maxW, canny, all_chromnames, chromnames, all_chromsizes, chromsizes,core, bfilter, seed)
+      print('1. Maximum pixel value calculation ...')
+      if slow:
+          print("1.1 Slowly estimating Maximum pixel values...")
