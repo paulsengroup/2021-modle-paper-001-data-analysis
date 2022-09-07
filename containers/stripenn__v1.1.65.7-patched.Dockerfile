@@ -10,20 +10,20 @@ ARG CONTAINER_VERSION
 ARG STRIPENN_VER=${CONTAINER_VERSION}
 
 
-ARG URL="https://files.pythonhosted.org/packages/2f/e0/aaa97b2c84b24f8340582c1acb93e475188216dd726244fc68e8d87a922a/stripenn-${STRIPENN_VER}.tar.gz"
+ARG URL="https://files.pythonhosted.org/packages/2f/e0/aaa97b2c84b24f8340582c1acb93e475188216dd726244fc68e8d87a922a/stripenn-1.1.65.7.tar.gz"
 
 RUN apt-get update \
 && apt-get install -y curl diffutils patch tar \
 && cd /tmp \
 && curl -L "$URL" | tar -xzf -
 
-COPY containers/patches/stripenn*.patch" /tmp
+COPY containers/patches/stripenn*.patch /tmp
 
 RUN cd /tmp \
 && patch -p1 \
          --ignore-whitespace \
-         --fuzz 3  < stripenn-*.fix_prng_seed.patch" \
-&& touch "stripenn-${CONTAINER_VERSION}/README.md"
+         --fuzz 3 < stripenn-*.fix_prng_seed.patch \
+&& touch stripenn-1.1.65.7/README.md
 
 
 FROM fedora:36 AS base
@@ -39,9 +39,9 @@ RUN if [ -z "$CONTAINER_VERSION" ]; then echo "Missing CONTAINER_VERSION --build
 RUN echo 'max_parallel_downloads=10' >> /etc/dnf/dnf.conf \
 &&  echo 'fastestmirror=True' >> /etc/dnf/dnf.conf
 
-COPY --from=downloader "/tmp/stripenn-${STRIPENN_VER}/README.md" /tmp/stripenn/
-COPY --from=downloader "/tmp/stripenn-${STRIPENN_VER}/"setup.* /tmp/stripenn/
-COPY --from=downloader "/tmp/stripenn-${STRIPENN_VER}/src" /tmp/stripenn/src
+COPY --from=downloader /tmp/stripenn-*/README.md /tmp/stripenn/
+COPY --from=downloader /tmp/stripenn-*/setup.* /tmp/stripenn/
+COPY --from=downloader /tmp/stripenn-*/src /tmp/stripenn/src
 
 RUN dnf update -y \
 &&  dnf install -y gcc \
