@@ -17,7 +17,7 @@ RUN apt-get update \
 && cd /tmp \
 && curl -L "$URL" | tar -xzf -
 
-COPY "containers/patches/stripenn-${CONTAINER_VERSION}.fix_prng_seed.patch" /tmp
+COPY containers/patches/stripenn*.patch" /tmp
 
 RUN cd /tmp \
 && patch -p1 \
