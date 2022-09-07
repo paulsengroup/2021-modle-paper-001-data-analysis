@@ -48,11 +48,10 @@ workflow {
 
     cooler_zoomify_tar(run_gw_optimization.out.tar.flatten())
 
+
     generate_modle_configs(file(params.chrom_sizes_file),
                            file(params.extr_barrier_file),
-                           run_gw_optimization.out.summary_tsv
-                                              .filter { it.getBaseName().contains("_loop_only_") }
-                                              .flatten(),
+                           run_gw_optimization.out.summary_tsv,
                            file(params.param_intervals_of_interest),
                            params.target_contact_density_param_of_interest)
 
@@ -61,6 +60,8 @@ workflow {
               generate_modle_configs.out.configs.flatten())
 
     cooler_zoomify(run_modle.out.cool)
+
+    plot_optimization_results(run_gw_optimization.out.stats_pickle)
 
 }
 
@@ -167,25 +168,25 @@ process run_gw_optimization {
     shell:
         out="${output_prefix.fileName}"
         '''
-        python3 '!{params.script_dir}/optimize_modle_sim_params.py' optimize              \
-             --param-space-tsv="!{param_space_file}"                        \
-             --output-prefix="!{out}"                                       \
-             --chrom-sizes="!{chrom_sizes}"                                 \
-             --extrusion-barriers="!{extrusion_barriers}"                   \
-             --evaluation-sites-training="!{evaluation_sites_training}"     \
-             --evaluation-sites-validation="!{evaluation_sites_validation}" \
-             --transformed-reference-matrix="!{reference_matrix}"           \
-             --excluded-chroms="!{excluded_chroms}"                         \
-             --x0="!{starting_point}"                                       \
-             --gaussian-blur-sigma-tgt="!{blur_sigma_tgt}"                  \
-             --gaussian-blur-sigma-multiplier-tgt="!{blur_sigma_mult_tgt}"  \
-             --discretization-thresh-tgt="!{discret_thresh_tgt}"            \
-             --diagonal-width="!{diagonal_width}"                           \
-             --ncalls="!{ncalls}"                                           \
-             --nrandom-starts="!{num_random_starts}"                        \
-             --optimization-method="!{optimization_method}"                 \
-             --seed="!{seed}"                                               \
-             --threads=!{task.cpus}                                        \
+        python3 '!{params.script_dir}/optimize_modle_sim_params.py' optimize \
+             --param-space-tsv="!{param_space_file}"                         \
+             --output-prefix="!{out}"                                        \
+             --chrom-sizes="!{chrom_sizes}"                                  \
+             --extrusion-barriers="!{extrusion_barriers}"                    \
+             --evaluation-sites-training="!{evaluation_sites_training}"      \
+             --evaluation-sites-validation="!{evaluation_sites_validation}"  \
+             --transformed-reference-matrix="!{reference_matrix}"            \
+             --excluded-chroms="!{excluded_chroms}"                          \
+             --x0="!{starting_point}"                                        \
+             --gaussian-blur-sigma-tgt="!{blur_sigma_tgt}"                   \
+             --gaussian-blur-sigma-multiplier-tgt="!{blur_sigma_mult_tgt}"   \
+             --discretization-thresh-tgt="!{discret_thresh_tgt}"             \
+             --diagonal-width="!{diagonal_width}"                            \
+             --ncalls="!{ncalls}"                                            \
+             --nrandom-starts="!{num_random_starts}"                         \
+             --optimization-method="!{optimization_method}"                  \
+             --seed="!{seed}"                                                \
+             --threads=!{task.cpus}                                          \
              --modle-tools-eval-metric="!{scoring_method}"
         '''
 }
@@ -193,7 +194,7 @@ process run_gw_optimization {
 process run_stripenn {
     publishDir "${params.output_dir}/stripenn", mode: 'copy'
 
-    label 'process_medium'
+    label 'process_very_high'
     label 'process_very_long'
 
     input:
@@ -287,6 +288,7 @@ process generate_modle_configs {
 
         report = pd.read_table("!{optimization_report_tsv}")
         param_intervals = pd.read_table("!{param_intervals}")
+        outprefix = str("!{optimization_report_tsv}").removesuffix(".tsv")
 
         rows = []
 
@@ -315,12 +317,12 @@ process generate_modle_configs {
             config = ["[simulate]"]
             config.append("chrom-sizes=\\"!{chrom_sizes}\\"")
             config.append("extrusion-barrier-file=\\"!{barriers}\\"")
-            config.append(f"output-prefix=\\"gw_param_optimization_{score:.4f}_occ_{occ:.4f}_puu_{puu:.4f}\\"")
+            config.append(f"output-prefix=\\"{outprefix}_{score:.4f}_occ_{occ:.4f}_puu_{puu:.4f}\\"")
             config.append("target-contact-density=!{target_contact_density}")
             config.append(f"extrusion-barrier-occupancy={occ:.4f}")
             config.append(f"extrusion-barrier-not-bound-stp={puu:.4f}")
 
-            with open(f"gw_param_optimization_{score:.4f}_occ_{occ:.4f}_puu_{puu:.4f}.toml", "w") as f:
+            with open(f"{outprefix}_{score:.4f}_occ_{occ:.4f}_puu_{puu:.4f}.toml", "w") as f:
                 print("\\n".join(config), file=f)
         '''
 }
@@ -360,5 +362,26 @@ process cooler_zoomify {
     shell:
         '''
         cooler zoomify -p !{task.cpus} -r N '!{cool}'
+        '''
+}
+
+
+process plot_optimization_results {
+    publishDir "${params.output_dir}/optimization", mode: 'copy'
+
+    input:
+        path pickle
+
+    output:
+        path "*.png", emit: png
+        path "*.svg", emit: svg
+    shell:
+        outprefix="${pickle.baseName}"
+        '''
+        '!{params.script_dir}/plotting/plot_param_optimization_results.py'  \
+             -o '!{outprefix}'    \
+             --vmax 65            \
+             --gradient-levels 12 \
+             '!{pickle}'
         '''
 }

@@ -198,7 +198,7 @@ def _evaluate_min_params(result, params='result',
 def plot_objective(result, levels=10, n_points=40, n_samples=250, size=2,
                    zscale='linear', dimensions=None, sample_source='random',
                    minimum='result', minimum_validation=None, n_minimum_search=None,
-                   plot_dims=None, show_points=True, cmap='viridis_r'):
+                   plot_dims=None, show_points=True, cmap='viridis_r', vmin=None, vmax=None):
     """
     Source:
     https://github.com/scikit-optimize/scikit-optimize/blob/a2369ddbc332d16d8ff173b12404b03fea472492/skopt/plots.py#L542
@@ -247,6 +247,13 @@ def plot_objective(result, levels=10, n_points=40, n_samples=250, size=2,
     # fig.subplots_adjust(left=0.05, right=0.95, bottom=0.05, top=0.95,
     #                    hspace=0.1, wspace=0.1)
 
+    kwargs = {}
+    if vmin is not None:
+        kwargs["vmin"] = vmin
+
+    if vmax is not None:
+        kwargs["vmax"] = vmax
+
     for i in range(n_dims):
         for j in range(n_dims):
             if i > j:
@@ -257,7 +264,7 @@ def plot_objective(result, levels=10, n_points=40, n_samples=250, size=2,
                                                    index1, index2,
                                                    samples, n_points)
                 cs = ax_.contourf(xi, yi, zi, levels,
-                                  locator=locator, cmap=cmap)
+                                  locator=locator, cmap=cmap, **kwargs)
                 fig.colorbar(cs, label="score", use_gridspec=True)  # , ax=ax_)
                 if show_points:
                     ax_.scatter(x_samples[:, index2], x_samples[:, index1],
@@ -283,12 +290,15 @@ def make_cli():
                      required=True,
                      help="Path to output prefix.")
 
+    cli.add_argument("--vmin", type=float)
+    cli.add_argument("--vmax", type=float)
+
     cli.add_argument("--optimal-params-validation",
                      action=SplitFloatArgs,
                      help="Coordinates of the lowest score on the validation datasets.")
 
     cli.add_argument("--gradient-levels",
-                     default=15,
+                     default=10,
                      help="Number of color steps to use to plot the gradient of the obj. function.")
     return cli
 
@@ -328,8 +338,13 @@ if __name__ == "__main__":
     plt.savefig(f"{out_prefix}_evaluations.png", dpi=1200)
     plt.savefig(f"{out_prefix}_evaluations.svg")
 
-    plot_objective(data, levels=10, size=3, dimensions=["occupancy", "pnooc->pnooc"],
-                   minimum_validation=optimal_point_validation)
+    plot_objective(data,
+                   levels=int(args.gradient_levels),
+                   size=3,
+                   dimensions=["occupancy", "pnooc->pnooc"],
+                   minimum_validation=optimal_point_validation,
+                   vmin=args.vmin,
+                   vmax=args.vmax)
     plt.tight_layout()
     plt.savefig(f"{out_prefix}_objective.png", dpi=1200)
     plt.savefig(f"{out_prefix}_objective.svg")
