@@ -22,7 +22,7 @@ COPY containers/patches/stripenn*.patch" /tmp
 RUN cd /tmp \
 && patch -p1 \
          --ignore-whitespace \
-         --fuzz 3  < "stripenn-${CONTAINER_VERSION}.fix_prng_seed.patch" \
+         --fuzz 3  < stripenn-*.fix_prng_seed.patch" \
 && touch "stripenn-${CONTAINER_VERSION}/README.md"
 
 
