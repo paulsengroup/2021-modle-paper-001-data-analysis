@@ -65,10 +65,12 @@ workflow {
                                     params.mutpb_locus_003,
                                     params.mutsigma_003)
 
-    run_modle_sim_on_optimized_barriers(file(params.microc_modle_config),
-                                        file(params.chrom_sizes),
-                                        optimize_extrusion_barriers_003.out.optimized_barriers,
-                                        file(params.regions_of_interest))
+    run_modle_sim(file(params.microc_modle_config),
+                  file(params.chrom_sizes),
+                  Channel.empty()
+                         .mix(Channel.of(file(params.chip_barriers)),
+                              optimize_extrusion_barriers_003.out.optimized_barriers),
+                  file(params.regions_of_interest))
 
     run_modle_sim_on_hof(file(params.microc_modle_config),
                          file(params.chrom_sizes),
@@ -79,7 +81,7 @@ workflow {
     cooler_merge(run_modle_sim_on_hof.out.cool.collect())
 
     cooler_zoomify(Channel.empty()
-                          .mix(run_modle_sim_on_optimized_barriers.out.cool,
+                          .mix(run_modle_sim.out.cool,
                                run_modle_sim_on_hof.out.cool,
                                cooler_merge.out.cool).flatten())
 
@@ -352,7 +354,7 @@ process run_modle_sim_on_hof {
 }
 
 
-process run_modle_sim_on_optimized_barriers {
+process run_modle_sim {
     publishDir "${params.output_dir}/simulations/", mode: 'copy'
 
     label 'process_medium'
@@ -372,9 +374,17 @@ process run_modle_sim_on_optimized_barriers {
     shell:
         out_prefix=extr_barriers.getSimpleName()
         '''
+        set -o pipefail
+
+        chroms=($(cut -f 1 '!{regions_of_interest}' | sort -u))
+
+        for chrom in "${chroms[@]}"; do
+            zcat '!{extr_barriers}' | grep -P "^${chrom}\\b" >> barriers.bed
+        done
+
         modle sim --config '!{config}'                       \
                   -c '!{chrom_sizes}'                        \
-                  -b '!{extr_barriers}'                      \
+                  -b barriers.bed                            \
                   --chrom-subranges '!{regions_of_interest}' \
                   -t !{task.cpus}                            \
                   -o '!{out_prefix}'
@@ -445,7 +455,7 @@ process convert_occ_to_chip_like_signal {
         path "*.bw", emit: bigwig
 
     shell:
-        outprefix=barriers.getSimpleName()
+        outprefix="${barriers.simpleName}_simulated_chip"
         '''
         '!{params.script_dir}/convert_occupancy_to_chip_signal.py' \
             -o '!{outprefix}' \
@@ -458,7 +468,5 @@ process convert_occ_to_chip_like_signal {
             --clamp \
             -o '!{outprefix}_!{bin_size}' \
             '!{chrom_sizes}' '!{barriers}'
-
-            echo foo1
         '''
 }
