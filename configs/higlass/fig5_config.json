@@ -1,0 +1,314 @@
+{
+  "editable": true,
+  "zoomFixed": false,
+  "trackSourceServers": [
+    "/api/v1"
+  ],
+  "exportViewUrl": "/api/v1/viewconfs/",
+  "views": [
+    {
+      "tracks": {
+        "top": [
+          {
+            "filetype": "cooler",
+            "server": "http://localhost:9000/api/v1",
+            "tilesetUid": "665b78c5-8afe-16b0-a851-fbbfaffe2933",
+            "uid": "CkMChjrnSfye8iy0lKvvVg",
+            "type": "linear-heatmap",
+            "options": {
+              "backgroundColor": "#eeeeee",
+              "labelPosition": "bottomRight",
+              "labelLeftMargin": 0,
+              "labelRightMargin": 0,
+              "labelTopMargin": 0,
+              "labelBottomMargin": 0,
+              "labelShowResolution": true,
+              "labelShowAssembly": true,
+              "labelColor": "black",
+              "colorRange": [
+                "white",
+                "rgba(245,166,35,1.0)",
+                "rgba(208,2,27,1.0)",
+                "black"
+              ],
+              "maxZoom": null,
+              "minWidth": 100,
+              "minHeight": 40,
+              "trackBorderWidth": 0,
+              "trackBorderColor": "black",
+              "name": "GRCh38_H1_hESC_microC_4DNFI9GMP2J8_fixed"
+            },
+            "width": 2526,
+            "height": 150,
+            "transforms": [
+              {
+                "name": "ICE",
+                "value": "weight"
+              }
+            ]
+          },
+          {
+            "filetype": "cooler",
+            "server": "http://localhost:9000/api/v1",
+            "tilesetUid": "c4bb8a51-cf39-0b64-6101-365d174b2cbb",
+            "uid": "JtdJLT7pQMukGHD4JC6Hzg",
+            "type": "linear-heatmap",
+            "options": {
+              "backgroundColor": "#eeeeee",
+              "labelPosition": "bottomRight",
+              "labelLeftMargin": 0,
+              "labelRightMargin": 0,
+              "labelTopMargin": 0,
+              "labelBottomMargin": 0,
+              "labelShowResolution": true,
+              "labelShowAssembly": true,
+              "labelColor": "black",
+              "colorRange": [
+                "white",
+                "rgba(245,166,35,1.0)",
+                "rgba(208,2,27,1.0)",
+                "black"
+              ],
+              "maxZoom": null,
+              "minWidth": 100,
+              "minHeight": 40,
+              "trackBorderWidth": 0,
+              "trackBorderColor": "black",
+              "name": "GRCh38_H1_optimized_barriers_microc_003_extrusion_barriers"
+            },
+            "width": 2526,
+            "height": 150,
+            "transforms": []
+          },
+          {
+            "filetype": "cooler",
+            "server": "http://localhost:9000/api/v1",
+            "tilesetUid": "27aa5d22-bf7f-6b90-5632-e2b8f5b44cf3",
+            "uid": "Jf6UD6EESeODziFD6wkpgA",
+            "type": "linear-heatmap",
+            "options": {
+              "backgroundColor": "#eeeeee",
+              "labelPosition": "bottomRight",
+              "labelLeftMargin": 0,
+              "labelRightMargin": 0,
+              "labelTopMargin": 0,
+              "labelBottomMargin": 0,
+              "labelShowResolution": true,
+              "labelShowAssembly": true,
+              "labelColor": "black",
+              "colorRange": [
+                "white",
+                "rgba(245,166,35,1.0)",
+                "rgba(208,2,27,1.0)",
+                "black"
+              ],
+              "maxZoom": null,
+              "minWidth": 100,
+              "minHeight": 40,
+              "trackBorderWidth": 0,
+              "trackBorderColor": "black",
+              "name": "GRCh38_H1_barriers_RAD21_occupancy"
+            },
+            "width": 100,
+            "height": 150,
+            "transforms": []
+          },
+          {
+            "filetype": "chromsizes-tsv",
+            "server": "http://localhost:9000/api/v1",
+            "tilesetUid": "e9d00096-de77-2cd6-d7c2-d3b1bed60838",
+            "uid": "A82xNCXgTaqd7PSiA4nu4w",
+            "type": "chromosome-labels",
+            "options": {
+              "color": "#808080",
+              "stroke": "#ffffff",
+              "fontSize": 12,
+              "fontIsLeftAligned": false,
+              "showMousePosition": false,
+              "mousePositionColor": "#000000",
+              "reverseOrientation": false
+            },
+            "width": 2526,
+            "height": 50
+          },
+          {
+            "filetype": "bigwig",
+            "server": "http://localhost:9000/api/v1",
+            "tilesetUid": "b22cc41a-0e2d-40c6-493d-18e2a50c5ac3",
+            "uid": "Aaboh7FQQRq-Ugh9P1Y98w",
+            "type": "bar",
+            "options": {
+              "labelColor": "black",
+              "labelPosition": "topLeft",
+              "labelLeftMargin": 0,
+              "labelRightMargin": 0,
+              "labelTopMargin": 0,
+              "labelBottomMargin": 0,
+              "labelBackgroundColor": "white",
+              "labelShowResolution": false,
+              "labelShowAssembly": true,
+              "axisLabelFormatting": "normal",
+              "axisPositionHorizontal": "right",
+              "lineStrokeColor": "blue",
+              "lineStrokeWidth": 1,
+              "valueScaling": "linear",
+              "trackBorderWidth": "none",
+              "trackBorderColor": "white",
+              "labelTextOpacity": 0.4,
+              "showMousePosition": false,
+              "minHeight": 20,
+              "mousePositionColor": "#000000",
+              "showTooltip": false,
+              "name": "GRCh38_H1_RAD21_chip_fold_change",
+              "aggregationMode": "max",
+              "barFillColor": "blue",
+              "align": "bottom",
+              "barOpacity": 1,
+              "axisMargin": 0
+            },
+            "width": 2526,
+            "height": 100
+          },
+          {
+            "filetype": "bigwig",
+            "server": "http://localhost:9000/api/v1",
+            "tilesetUid": "637cda4a-9777-c8be-ee45-8dcfd6b7169f",
+            "uid": "WCp_Mp0KR1S00c1WCufJXw",
+            "type": "bar",
+            "options": {
+              "labelColor": "black",
+              "labelPosition": "topLeft",
+              "labelLeftMargin": 0,
+              "labelRightMargin": 0,
+              "labelTopMargin": 0,
+              "labelBottomMargin": 0,
+              "labelBackgroundColor": "white",
+              "labelShowResolution": false,
+              "labelShowAssembly": true,
+              "axisLabelFormatting": "scientific",
+              "axisPositionHorizontal": "right",
+              "lineStrokeColor": "blue",
+              "lineStrokeWidth": 1,
+              "valueScaling": "linear",
+              "trackBorderWidth": 0,
+              "trackBorderColor": "black",
+              "labelTextOpacity": 0.4,
+              "showMousePosition": false,
+              "minHeight": 20,
+              "mousePositionColor": "#000000",
+              "showTooltip": false,
+              "name": "GRCh38_H1_CTCF_chip_fold_change",
+              "aggregationMode": "max",
+              "barFillColor": "orange",
+              "align": "bottom",
+              "barOpacity": 1
+            },
+            "width": 2526,
+            "height": 100
+          },
+          {
+            "filetype": "bigwig",
+            "server": "http://localhost:9000/api/v1",
+            "tilesetUid": "3f313bea-8c59-d48d-2ffb-ae898347df79",
+            "uid": "GtvRgNTsR5mR7YlxeI62Mw",
+            "type": "bar",
+            "options": {
+              "align": "bottom",
+              "labelColor": "[glyph-color]",
+              "labelPosition": "topLeft",
+              "labelLeftMargin": 0,
+              "labelRightMargin": 0,
+              "labelTopMargin": 0,
+              "labelBottomMargin": 0,
+              "labelShowResolution": false,
+              "labelShowAssembly": true,
+              "axisLabelFormatting": "normal",
+              "axisPositionHorizontal": "right",
+              "barFillColor": "orange",
+              "valueScaling": "linear",
+              "trackBorderWidth": "none",
+              "trackBorderColor": "black",
+              "labelTextOpacity": 0.4,
+              "barOpacity": 1,
+              "name": "GRCh38_H1_optimized_barriers_microc_003_extrusion_barriers_simulated_chip_both_5000"
+            },
+            "width": 2526,
+            "height": 100
+          },
+          {
+            "filetype": "bigwig",
+            "server": "http://localhost:9000/api/v1",
+            "tilesetUid": "dcbd5d27-6404-056a-5b94-21cbb0ef6a5b",
+            "uid": "b1R2SoyARjij7UMc1XMEBw",
+            "type": "bar",
+            "options": {
+              "align": "bottom",
+              "labelColor": "[glyph-color]",
+              "labelPosition": "topLeft",
+              "labelLeftMargin": 0,
+              "labelRightMargin": 0,
+              "labelTopMargin": 0,
+              "labelBottomMargin": 0,
+              "labelShowResolution": false,
+              "labelShowAssembly": true,
+              "axisLabelFormatting": "scientific",
+              "axisPositionHorizontal": "right",
+              "barFillColor": "blue",
+              "valueScaling": "linear",
+              "trackBorderWidth": 0,
+              "trackBorderColor": "black",
+              "labelTextOpacity": 0.4,
+              "barOpacity": 1,
+              "name": "GRCh38_H1_optimized_barriers_microc_003_extrusion_barriers_lef_1d_occupancy"
+            },
+            "width": 2526,
+            "height": 100
+          }
+        ],
+        "left": [],
+        "center": [],
+        "right": [],
+        "bottom": [],
+        "whole": [],
+        "gallery": []
+      },
+      "initialXDomain": [
+        20358584.2093923,
+        24105896.439989552
+      ],
+      "initialYDomain": [
+        817607403.947087,
+        817975311.0861164
+      ],
+      "layout": {
+        "w": 12,
+        "h": 12,
+        "x": 0,
+        "y": 0,
+        "moved": false,
+        "static": false
+      },
+      "uid": "E103W9OQRumDiAbI-j7G2w",
+      "genomePositionSearchBoxVisible": true,
+      "genomePositionSearchBox": {
+        "autocompleteServer": "/api/v1",
+        "chromInfoServer": "http://higlass.io/api/v1",
+        "visible": true,
+        "chromInfoId": "hg38",
+        "autocompleteId": null
+      }
+    }
+  ],
+  "zoomLocks": {
+    "locksByViewUid": {},
+    "locksDict": {}
+  },
+  "locationLocks": {
+    "locksByViewUid": {},
+    "locksDict": {}
+  },
+  "valueScaleLocks": {
+    "locksByViewUid": {},
+    "locksDict": {}
+  }
+}
