@@ -1,0 +1,12 @@
+# Copyright (C) 2022 Roberto Rossini <roberros@uio.no>
+#
+# SPDX-License-Identifier: MIT
+
+[simulate]
+bin-size=5000
+target-contact-density=6.0
+keep-chrom-without-barriers=true
+contact-sampling-strategy="loop-only-with-noise"
+avg-lef-processivity=150000
+output-prefix="GRCh38_prob_decay_low_proc_loop_only"
+diagonal-width=10000000
