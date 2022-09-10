@@ -29,6 +29,7 @@ https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM2713nnn/GSM2713716/suppl/GSM2713716_
 https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM2713nnn/GSM2713719/suppl/GSM2713719_PL_HiC_E12_del1-13d9lac_txt.tar.gz	GRCm38_E12.5PL_del1-13d9lac.tar.gz
 https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM2713nnn/GSM2713721/suppl/GSM2713721_PL_HiC_E12_delattP-Rel5d9lac_txt.tar.gz	GRCm38_E12.5PL_delattP-Rel5d9lac.tar.gz
 https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM2713nnn/GSM2713717/suppl/GSM2713717_PL_HiC_E12_Wt_txt.tar.gz	GRCm38_E12.5PL_wt.tar.gz
+https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4665nnn/GSM4665702/suppl/GSM4665702_E12_PFL_wt_ChIP_H3K27ac.bedGraph.gz	GRCm38_E12.5PL_H3K27ac.bedgraph.gz
 https://4dn-open-data-public.s3.amazonaws.com/fourfront-webprod/wfoutput/fd951289-11cf-4919-8105-816123555f76/4DNFINNZDDXV.mcool	GRCm38_JM8.N4_mESC_microc_4DNFINNZDDXV.mcool
 https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/000/001/635/GCF_000001635.26_GRCm38.p6/GCF_000001635.26_GRCm38.p6_assembly_report.txt	GRCm38_assembly_report.txt.gz
 https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/000/001/635/GCF_000001635.26_GRCm38.p6/GCF_000001635.26_GRCm38.p6_genomic.fna.gz	GRCm38_genome_assembly.fna.gz
