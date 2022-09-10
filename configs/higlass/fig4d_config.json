@@ -106,8 +106,8 @@
           {
             "filetype": "cooler",
             "server": "http://localhost:9000/api/v1",
-            "tilesetUid": "f18195d6-abc8-75d6-5cc6-5844d4e719d9",
-            "uid": "O5DoDp5XQo2l4_7xLwGdFg",
+            "tilesetUid": "28d54490-9aba-04f4-a9b0-cc226bee0f90",
+            "uid": "AI2rm9HBQbiJdhHWK_gj-A",
             "type": "linear-heatmap",
             "options": {
               "backgroundColor": "#eeeeee",
@@ -130,7 +130,7 @@
               "minHeight": 40,
               "trackBorderWidth": 0,
               "trackBorderColor": "black",
-              "name": "modle_sim_param_optimization_tad_plus_loop_bayesian_54.8795_occ_0.6722_puu_0.9900"
+              "name": "modle_sim_param_optimization_tad_plus_loop_bayesian_53.8246_occ_0.7470_puu_0.9628"
             },
             "width": 100,
             "height": 150,
@@ -139,8 +139,8 @@
           {
             "filetype": "cooler",
             "server": "http://localhost:9000/api/v1",
-            "tilesetUid": "c44cc30c-ac48-1bae-7942-d99da5b847ea",
-            "uid": "EPsCeiI3TXGy9E6IgZS4NA",
+            "tilesetUid": "6f74c00c-3021-1c4e-2d92-096d36f88305",
+            "uid": "cBZ0KM-5TIus_7ViYz_9og",
             "type": "linear-heatmap",
             "options": {
               "backgroundColor": "#eeeeee",
@@ -163,7 +163,7 @@
               "minHeight": 40,
               "trackBorderWidth": 0,
               "trackBorderColor": "black",
-              "name": "modle_sim_param_optimization_tad_plus_loop_bayesian_55.6341_occ_0.9503_puu_0.1712"
+              "name": "modle_sim_param_optimization_tad_plus_loop_bayesian_55.2315_occ_0.9047_puu_0.4515"
             },
             "width": 100,
             "height": 150,
@@ -172,8 +172,8 @@
           {
             "filetype": "cooler",
             "server": "http://localhost:9000/api/v1",
-            "tilesetUid": "982b9502-2ef3-87b5-0c12-3318f78df6f4",
-            "uid": "TYfi35DATdCyQ6BhFtlEmA",
+            "tilesetUid": "10f1713d-c42e-cb23-3480-c1438e377841",
+            "uid": "ScM-gRDdRou5JMmmARKgnw",
             "type": "linear-heatmap",
             "options": {
               "backgroundColor": "#eeeeee",
@@ -196,7 +196,7 @@
               "minHeight": 40,
               "trackBorderWidth": 0,
               "trackBorderColor": "black",
-              "name": "modle_sim_param_optimization_tad_plus_loop_bayesian_60.9318_occ_0.7041_puu_0.6083"
+              "name": "modle_sim_param_optimization_tad_plus_loop_bayesian_60.1660_occ_0.6719_puu_0.6079"
             },
             "width": 100,
             "height": 150,
@@ -205,8 +205,8 @@
           {
             "filetype": "cooler",
             "server": "http://localhost:9000/api/v1",
-            "tilesetUid": "53ac7795-d196-d972-0109-63b46931c900",
-            "uid": "V1qmjxHkTI2i78HQZfYJpA",
+            "tilesetUid": "53f3f674-6cb1-0b8a-40f4-cdae41a8606f",
+            "uid": "OwxOkfJsRi25SaQiDNK5fQ",
             "type": "linear-heatmap",
             "options": {
               "backgroundColor": "#eeeeee",
@@ -229,7 +229,7 @@
               "minHeight": 40,
               "trackBorderWidth": 0,
               "trackBorderColor": "black",
-              "name": "modle_sim_param_optimization_tad_plus_loop_bayesian_65.4967_occ_0.6136_puu_0.0538"
+              "name": "modle_sim_param_optimization_tad_plus_loop_bayesian_64.0184_occ_0.6095_puu_0.0711"
             },
             "width": 100,
             "height": 150,
@@ -248,8 +248,8 @@
         1753477316.1775136
       ],
       "initialYDomain": [
-        976348849.1648895,
-        976852118.1478541
+        976217260.4858574,
+        976983706.8268862
       ],
       "layout": {
         "w": 12,
