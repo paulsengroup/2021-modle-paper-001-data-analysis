@@ -102,3 +102,29 @@ for bw in "$data_dir/output/hoxd_encode_chip/"*.bigwig; do
         --no-upload \
         "output/hoxd_encode_chip/$bw_name.bigwig"
 done
+
+bg="$data_dir/input/GRCm38_E12.5PL_H3K27ac.bedgraph.gz"
+if [ ! -f "${bg%.bedgraph.gz}.bw" ]; then
+    tmpdir="$(mktemp -d)"
+    trap "rm -rf '$tmpdir'" EXIT
+
+    zcat "$bg" |
+        grep -E 'chr[[:digit:]XY]+[[:space:]]' |
+        sort -k1,1V -k2,2n |
+        tee "$tmpdir/tmp.bg" >/dev/null
+
+    bedGraphToBigWig "$tmpdir/tmp.bg" \
+        "$data_dir/output/preprocessing/chrom_sizes/GRCm38.chrom.sizes" \
+        "$data_dir/input/GRCm38_E12.5PL_H3K27ac.bw"
+fi
+
+bw="$data_dir/input/GRCm38_E12.5PL_H3K27ac.bw"
+bw_name="$(basename "$bw" .bw)"
+sudo -E higlass-manage ingest \
+    --project-name "ChIP" \
+    --name "$bw_name" \
+    --assembly mm10 \
+    --uid "$(uuidgen "$bw_name")" \
+    --hg-name "$name" \
+    --no-upload \
+    "input/$bw_name.bw"
