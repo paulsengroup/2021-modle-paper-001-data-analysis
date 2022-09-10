@@ -381,7 +381,7 @@ process plot_optimization_results {
         '!{params.script_dir}/plotting/plot_param_optimization_results.py'  \
              -o '!{outprefix}'    \
              --vmax 65            \
-             --gradient-levels 12 \
+             --gradient-levels 14 \
              '!{pickle}'
         '''
 }
