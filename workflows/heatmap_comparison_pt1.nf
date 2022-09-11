@@ -135,7 +135,29 @@ workflow {
                                                  compute_custom_scores_py.out.horizontal_scores),
                              file(params.extr_barriers))
 
+        cooler_zoomify.out.mcool.mix(Channel.of(file(params.microc_cool)))
+                                            .branch {
+                                                microc: it.getBaseName().startsWith(file(params.microc_cool).getBaseName())
+                                                openmm: it.getBaseName().contains("openmm") && \
+                                                       !it.getBaseName().contains("subsampled")
+                                                modle:  it.getBaseName().contains("tad_plus_loop") && \
+                                                       !it.getBaseName().contains("subsampled")
+                                                    }
+                                .set { coolers_for_corr }
 
+        correlate_matrices_by_diags(Channel.empty()
+                                           .concat(coolers_for_corr.microc,
+                                                   coolers_for_corr.microc,
+                                                   coolers_for_corr.modle),
+                                    Channel.empty()
+                                           .concat(coolers_for_corr.modle,
+                                                   coolers_for_corr.openmm,
+                                                   coolers_for_corr.openmm),
+                                    file(params.regions_of_interest),
+                                    params.bin_size_correlation,
+                                    params.diagonal_width_correlation)
+                                    
+        plot_correlation_by_diag(correlate_matrices_by_diags.out.tsv.collect())
 }
 
 process liftover_cool {
@@ -608,5 +630,52 @@ process overlap_score_with_compartments {
         '''
 
         '''
+}
 
+process correlate_matrices_by_diags {
+    publishDir "${params.outdir}/correlation", mode: 'copy'
+    label 'process_short'
+
+    input:
+        path m1
+        path m2
+        path intervals
+
+        val bin_size
+        val diag_width
+
+    output:
+        path "*.tsv.gz", emit: tsv
+
+    shell:
+        outname="${m1.baseName}_vs_${m2.baseName}.tsv.gz"
+        '''
+        set -o pipefail
+
+        '!{params.script_dir}/correlate_matrices_by_diags.py' \
+            --ref-matrix '!{m1}' \
+            --tgt-matrix '!{m2}' \
+            --chrom-ranges-bed '!{intervals}' \
+            --bin-size '!{bin_size}' \
+            --diagonal-width '!{diag_width}' | gzip -9 > '!{outname}'
+        '''
+}
+
+process plot_correlation_by_diag {
+    publishDir "${params.outdir}/correlation", mode: 'copy'
+    label 'process_short'
+
+    input:
+        path tsvs
+
+    output:
+        path "*.png", emit: png
+        path "*.svg", emit: svg
+
+    shell:
+        '''
+        '!{params.script_dir}/plotting/plot_correlation_by_diag.py' \
+            --tsv !{tsvs}   \
+            --output-prefix 'correlation_by_diagonal'
+        '''
 }
