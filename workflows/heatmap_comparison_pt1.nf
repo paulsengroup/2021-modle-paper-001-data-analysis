@@ -156,8 +156,21 @@ workflow {
                                     file(params.regions_of_interest),
                                     params.bin_size_correlation,
                                     params.diagonal_width_correlation)
-                                    
+
         plot_correlation_by_diag(correlate_matrices_by_diags.out.tsv.collect())
+
+        overlap_score_with_compartments(file(params.compartment_signal_bw),
+                                        run_modle_tools_eval.out.horizontal_bwig,
+                                        run_modle_tools_eval.out.vertical_bwig,
+                                        file(params.regions_of_interest),
+                                        run_stripenn.out.filtered.first())
+
+        plot_score_ab_compartment(overlap_score_with_compartments.out.bed
+                                                                 .filter{ it = it.getBaseName().toLowerCase()
+                                                                          it.contains("modle") && it.contains("microc") },
+                                  overlap_score_with_compartments.out.bed
+                                                                 .filter{ it = it.getBaseName().toLowerCase()
+                                                                          it.contains("openmm") && it.contains("microc") })
 }
 
 process liftover_cool {
@@ -613,25 +626,6 @@ process filter_custom_scores {
         '''
 }
 
-
-process overlap_score_with_compartments {
-
-    input:
-        path horizontal_bw
-        path vertical_bw
-        path compartment_bw
-        path regions_of_interest
-
-
-    output:
-        path "foo"
-
-    shell:
-        '''
-
-        '''
-}
-
 process correlate_matrices_by_diags {
     publishDir "${params.outdir}/correlation", mode: 'copy'
     label 'process_short'
@@ -677,5 +671,54 @@ process plot_correlation_by_diag {
         '!{params.script_dir}/plotting/plot_correlation_by_diag.py' \
             --tsv !{tsvs}   \
             --output-prefix 'correlation_by_diagonal'
+        '''
+}
+
+process overlap_score_with_compartments {
+    publishDir "${params.outdir}/ab_comp", mode: 'copy'
+
+    input:
+        path compartment_bw
+        path horizontal_bw
+        path vertical_bw
+        path regions_of_interest
+        path stripe_annotation
+
+    output:
+        path "*.bed.gz", emit: bed
+
+    shell:
+        '''
+        set -o pipefail
+
+        outname="$(basename '!{horizontal_bw}' _horizontal.bw).bed.gz"
+
+        '!{params.script_dir}/compute_accuracy_by_compartment.py' \
+            '!{stripe_annotation}' \
+            '!{compartment_bw}' \
+            '!{horizontal_bw}' \
+            '!{vertical_bw}' \
+            --regions-of-interest '!{regions_of_interest}' |
+            gzip -9 > "$outname"
+        '''
+}
+
+process plot_score_ab_compartment {
+    publishDir "${params.outdir}/ab_comp", mode: 'copy'
+
+    input:
+        path modle_report_bed
+        path openmm_report_bed
+
+    output:
+        path "*.png", emit: png
+        path "*.svg", emit: svg
+
+    shell:
+        '''
+        '!{params.script_dir}/plotting/plot_score_by_compartment.py' \
+            '!{modle_report_bed}' \
+            '!{openmm_report_bed}' \
+            --output-prefix modle_vs_openmm_score_by_compartment
         '''
 }
