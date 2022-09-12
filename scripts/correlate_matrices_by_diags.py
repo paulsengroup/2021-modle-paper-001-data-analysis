@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
 
+# Copyright (C) 2022 Roberto Rossini <roberros@uio.no>
+#
+# SPDX-License-Identifier: MIT
+
 # Important! This script is not meant to be used on large regions!
 
 import argparse

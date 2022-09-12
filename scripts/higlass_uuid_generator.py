@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
 
+# Copyright (C) 2022 Roberto Rossini <roberros@uio.no>
+#
+# SPDX-License-Identifier: MIT
 
 import hashlib
 import uuid
