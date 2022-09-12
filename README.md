@@ -28,10 +28,11 @@ Each workflow is paired with a config file (see `configs` folder). As an example
 - Nextflow v20.07.1 or newer
 - Apptainer/Singularity (tested with Singularity v3.7.2)
 - One or more NVIDIA GPUs (required to run MD simulations using OpenMM)
+- Caper and Croo (required to run the ENCODE TF ChIP-seq pipeline, tested with v2.2.2 and v0.6.0 respectively)
 
 ## Running workflows
 
-The `fetch_data.nf` and `preprocess_data.nf` workflows must be executed first (and in this order), as they are responsible for preparing data used by the other workflows.
+The `fetch_data.nf`, ENCODE `chip-seq-pipeline2` and `preprocess_data.nf` workflows must be executed first (and in this order), as they are responsible for preparing data used by the other workflows.
 
 Remaining workflows can be executed in any order.
 
@@ -39,30 +40,6 @@ Inside the `config` folder there are two base configs (`base_hovig.config` and `
 
 Both configs are specific to the machine and cluster we used during workflow development and data analysis and will most likely need to be updated in order to run on other machines/clusters.
 
-### Running workflows on a single node
+Refer to `run_*.sh` scripts for examples on how to run workflows individually, or `runme.sh` to run every workflow in the correct order.
 
-```bash
-nextflow run -c configs/fetch_data.config -c configs/base_hovig.config workflows/fetch_data.nf -resume
-nextflow run -c configs/preprocess_data.config -c configs/base_hovig.config workflows/preprocess_data.nf -resume
-nextflow run -c configs/heatmap_comparison_pt1.config -c configs/base_hovig.config workflows/heatmap_comparison_pt1.nf -resume
-nextflow run -c configs/comparison_with_mut.config -c configs/base_hovig.config workflows/comparison_with_mut.nf -resume
-nextflow run -c configs/gw_param_optimization.config -c configs/base_hovig.config workflows/gw_param_optimization.nf -resume
-nextflow run --max_memory=400.G --max_cpus=52 --max_time=336.h --project=na -c configs/run_benchmarks.config -c configs/base_hovig.config workflows/run_benchmarks.nf -resume
-```
-
-### Running workflows on a compute cluster using SLURM
-
-```bash
-nextflow run --max_cpus=52 --max_memory=400.G --max_time=336.h --project="${SLURM_PROJECT_ID-changeme}" \
-             -c configs/fetch_data.config -c configs/base_saga.config workflows/fetch_data.nf -resume
-nextflow run --max_cpus=52 --max_memory=400.G --max_time=336.h --project="${SLURM_PROJECT_ID-changeme}" \
-             -c configs/preprocess_data.config -c configs/base_saga.config workflows/preprocess_data.nf -resume
-nextflow run --max_cpus=52 --max_memory=400.G --max_time=336.h --project="${SLURM_PROJECT_ID-changeme}" \
-             -c configs/heatmap_comparison_pt1.config -c configs/base_saga.config workflows/heatmap_comparison_pt1.nf -resume
-nextflow run --max_cpus=52 --max_memory=400.G --max_time=336.h --project="${SLURM_PROJECT_ID-changeme}" \
-             -c configs/comparison_with_mut.config -c configs/base_saga.config workflows/comparison_with_mut.nf -resume
-nextflow run --max_cpus=52 --max_memory=400.G --max_time=336.h --project="${SLURM_PROJECT_ID-changeme}" \
-             -c configs/gw_param_optimization.config -c configs/base_saga.config workflows/gw_param_optimization.nf -resume
-nextflow run --max_cpus=52 --max_memory=400.G --max_time=336.h --project="${SLURM_PROJECT_ID-changeme}" \
-             -c configs/run_benchmarks.config -c configs/base_saga.config workflows/run_benchmarks.nf -resume
-```
+Please make sure Nextflow and/or Caper are properly installed and configured before running any of the workflows.
