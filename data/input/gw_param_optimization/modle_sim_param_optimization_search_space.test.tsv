@@ -1,7 +1,0 @@
-param	start	end
---extrusion-barrier-occupancy	0.5	1.0
---ctcf-not-occupied-probability-of-transition-to-self	0.0	1.0
---bin-size	5000	5000
---target-contact-density	0.001	0.001
---ncells	2	2
---contact-sampling-strategy	loop-only-with-noise	loop-only-with-noise
