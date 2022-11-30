@@ -6,7 +6,7 @@ SPDX-License-Identifier: MIT
 
 # Synopsis
 
-This repository contains the source code and input data used to generate results presented in "MoDLE: High-performance stochastic modeling of DNA loop extrusion interactions" (preprint available on [bioRxiv](https://doi.org/10.1101/2022.04.13.488157)).
+This repository contains the source code and input data used to generate results presented in "MoDLE: high-performance stochastic modeling of DNA loop extrusion interactions." published on Genome Biology [10.1186/s13059-022-02815-7](https://doi.org/10.1186/s13059-022-02815-7)
 
 Input data download and subsequent analyses are automated using Nextflow and Singularity/Apptainer.
 
